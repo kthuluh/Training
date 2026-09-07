@@ -1,0 +1,48 @@
+name: Daily training + diet brief
+
+on:
+  schedule:
+    # 05:00 UTC = 07:00 hora de España (CEST) / 06:00 en horario de invierno (CET)
+    # Ajusta la hora si quieres que llegue a otra hora local.
+    - cron: "0 5 * * *"
+  workflow_dispatch: {}   # permite lanzarlo a mano desde la pestaña Actions para probar
+
+jobs:
+  send-brief:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      # --- Bloque opcional de Coros --------------------------------------
+      # Descomenta este step SOLO si aceptas usar la librería no oficial
+      # de Coros (ver README). Si no, el script de Python sigue funcionando
+      # sin datos de Coros (usa solo Strava).
+      # - name: Set up Node (solo si usas Coros)
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: "20"
+      # - name: Fetch Coros data (no oficial, puede romperse)
+      #   env:
+      #     COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
+      #     COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
+      #   run: node scripts/coros_fetch.mjs
+      # ---------------------------------------------------------------------
+
+      - name: Build and send daily brief
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python scripts/daily_brief.py
