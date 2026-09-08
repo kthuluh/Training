@@ -1,0 +1,41 @@
+name: Update dashboard
+
+on:
+  schedule:
+    # 5 min después del correo diario, para que el dashboard refleje lo
+    # mismo que acabas de leer. Ajusta si cambiaste la hora del otro cron.
+    - cron: "5 5 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # necesario para que la Action pueda hacer commit al repo
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Update dashboard from Strava
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: python scripts/update_dashboard.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add dashboard/dashboard-kthuluh.html
+          git diff --cached --quiet && echo "Sin cambios." || git commit -m "Actualización automática del dashboard"
+          git push
