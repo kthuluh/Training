@@ -81,3 +81,32 @@ formato UTC).
 Todo el plan de entrenamiento (semana por semana) y la dieta están en
 `scripts/daily_brief.py`, en las listas `WEEKS` y `DIET` al principio del
 archivo — edítalas ahí directamente, sin tocar el resto del código.
+
+## 7. Dashboard con auto-actualización
+
+`dashboard/dashboard-kthuluh.html` es tu dashboard, con partes marcadas
+en el código (comentarios `AUTO:...`) que el workflow **Update dashboard**
+actualiza cada día automáticamente usando Strava: la fecha, la tarjeta de
+"semana en curso" (km y sesiones), el mes actual en el gráfico mensual, y
+el gráfico de tendencia semanal completo.
+
+Lo que sale de Coros (FC reposo, sueño, HRV) queda marcado como
+"(manual)" y no se toca solo — si quieres que también se actualice
+solo, es cuando tendría sentido activar el bloque opcional de Coros
+del paso 4.
+
+**Para tener un link fijo que siempre muestre la última versión:**
+
+1. En tu repo: **Settings → Pages**.
+2. En "Source", elige **Deploy from a branch**, rama `main`, carpeta
+   `/ (root)` (o `/dashboard` si tu plan de GitHub Pages te deja elegir
+   subcarpeta — si no, déjalo en root, funciona igual).
+3. Guarda. GitHub te da una URL tipo
+   `https://tu-usuario.github.io/tu-repo/dashboard/dashboard-kthuluh.html`
+   — tarda 1-2 minutos en activarse la primera vez.
+4. Guárdala en favoritos. Cada mañana, después de que corra el workflow,
+   esa misma URL va a mostrar los datos del día.
+
+Para probarlo ahora mismo sin esperar al cron: pestaña **Actions** →
+"Update dashboard" → **Run workflow**.
+
