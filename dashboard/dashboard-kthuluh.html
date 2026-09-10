@@ -148,7 +148,7 @@
   <div class="hero-top">
     <div>
       <h1>Kthuluh — Panel de entrenamiento y salud</h1>
-      <p>Arenys de Mar · datos en vivo de Strava y Coros · <!--AUTO:UPDATED_DATE-->9 sep 2026<!--/AUTO:UPDATED_DATE--></p>
+      <p>Arenys de Mar · datos en vivo de Strava y Coros · <!--AUTO:UPDATED_DATE-->10 sep 2026<!--/AUTO:UPDATED_DATE--></p>
     </div>
   </div>
   <div class="hero-stats">
@@ -457,8 +457,8 @@
         <div class="metric"><span>FC reposo</span><span class="v">49 bpm <span class="delta up">▼1</span></span></div>
       </div>
       <!--AUTO:CURRENT_WEEK--><div class="wcard partial"><div class="wk-lbl">7-13 sep · en curso</div>
-        <div class="metric"><span>Carrera</span><span class="v">0.0 km</span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
+        <div class="metric"><span>Carrera</span><span class="v">7.2 km</span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">1</span></div>
         <div class="metric" style="opacity:0.7;"><span>Sueño <i style="font-size:10px;">(manual)</i></span><span class="v">—</span></div>
         <div class="metric" style="opacity:0.7;"><span>FC reposo <i style="font-size:10px;">(manual)</i></span><span class="v">—</span></div>
       </div><!--/AUTO:CURRENT_WEEK-->
@@ -590,7 +590,7 @@
       labels:['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep*'],
       datasets:[{
         label:'km/mes',
-        data:/*AUTO:MONTHLY_VOL*/[93.9,111.0,44.1,29.7,92.4,61.6,67.3,111.4,16.7]/*/AUTO:MONTHLY_VOL*/,
+        data:/*AUTO:MONTHLY_VOL*/[93.9,111.0,44.1,29.7,92.4,61.6,67.3,111.4,23.9]/*/AUTO:MONTHLY_VOL*/,
         backgroundColor:(ctx)=>ctx.index===8?'#D6CDB3':'#3F5C46',
         borderRadius:2
       }]
@@ -629,7 +629,7 @@
     data:{
       labels:/*AUTO:WEEKLY_LABELS*/['8-14 jun','15-21 jun','22-28 jun','29jun-5jul','13-19 jul','20-26 jul','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep*']/*/AUTO:WEEKLY_LABELS*/,
       datasets:[
-        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[19.6,16.4,12.5,28.2,25.8,13.3,26.3,47.1,38.0,16.7,0.0]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
+        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[19.6,16.4,12.5,28.2,25.8,13.3,26.3,47.1,38.0,16.7,7.2]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
         {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[7.33,6.48,7.32,7.15,7.94,7.93,5.75,7.61,6.42,7.57,7.52]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
         {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[49,51,51,50,49,51,55,52,50,49,51]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
       ]
