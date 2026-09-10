@@ -33,7 +33,7 @@ jobs:
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: python scripts/update_dashboard.py
 
-      - name: Commit and push (force bot changes if conflict)
+      - name: Commit and push (always overwrite remote)
         run: |
           git config user.name "dashboard-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -47,16 +47,8 @@ jobs:
             BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
             echo "📥 Haciendo pull con resolución automática a favor del bot..."
-            git pull --rebase --strategy-option=theirs origin "$BRANCH" || {
-              echo "⚠️ Conflictos detectados, aplicando resolución automática..."
-              git rebase --abort
-              git fetch origin "$BRANCH"
-              git reset --hard HEAD
-              git pull --strategy-option=theirs origin "$BRANCH"
-              git add dashboard/dashboard-kthuluh.html
-              git commit -m "Actualización automática del dashboard (conflictos resueltos)"
-            }
+            git pull --rebase --strategy-option=theirs origin "$BRANCH" || true
 
-            echo "📤 Subiendo cambios..."
-            git push origin "$BRANCH"
+            echo "📤 Subiendo cambios (forzando si es necesario)..."
+            git push origin "$BRANCH" || git push --force-with-lease origin "$BRANCH"
           fi
