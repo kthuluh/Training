@@ -4,7 +4,7 @@ on:
   schedule:
     # 05:00 UTC = 07:00 hora de España (CEST) / 06:00 en horario de invierno (CET)
     # Ajusta la hora si quieres que llegue a otra hora local.
-    - cron: "0 4 * * *"
+    - cron: "0 5 * * *"
   workflow_dispatch: {}   # permite lanzarlo a mano desde la pestaña Actions para probar
 
 jobs:
