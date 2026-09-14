@@ -32,7 +32,9 @@ jobs:
            node-version: "22"
       
       - name: Install dependencies
-        run: npx jsr add @pinta365/coros
+        run: |
+           curl -fsSL https://jsr.io/install.sh | sh
+           /home/runner/.jsr/bin/jsr add @pinta365/coros
   
       - name: Fetch Coros data
         env:
