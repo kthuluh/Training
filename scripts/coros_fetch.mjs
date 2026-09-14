@@ -13,7 +13,9 @@
 //   { "resting_hr": 50, "sleep_hours": 7.3, "hrv": 42 }
 
 import { writeFileSync } from "fs";
-// import { CorosClient } from "@pinta365/coros"; // ajusta el import según la doc actual de la librería
+//import { CorosClient } from "jsr:@pinta365/coros";
+// or with deno.json imports: import { CorosClient } from "@pinta365/coros";
+import { CorosClient } from "@pinta365/coros"; // ajusta el import según la doc actual de la librería
 
 async function main() {
   const email = process.env.COROS_EMAIL;
@@ -25,14 +27,19 @@ async function main() {
   }
 
   // --- Reemplaza este bloque con las llamadas reales de la librería ---
-  // const client = new CorosClient();
-  // await client.login(email, password);
-  // const health = await client.getDailyHealth(new Date());
-  // const data = {
-  //   resting_hr: health.restingHeartRate,
-  //   sleep_hours: health.sleep.totalMinutes / 60,
-  //   hrv: health.hrvBaseline,
-  // };
+  //const client = new CorosClient();
+  const client = new CorosClient(
+    { email: "kthuluh@gmail.com", password: "666ktulu" },
+    { region: "eu" }, // "en" (Americas, default) | "eu" | "cn"
+  );
+  //await client.login(email, password);
+  await client.login();
+  const health = await client.getDailyHealth(new Date());
+  const data = {
+    resting_hr: health.restingHeartRate,
+    sleep_hours: health.sleep.totalMinutes / 60,
+    hrv: health.hrvBaseline,
+   };
   // ---------------------------------------------------------------------
 
   const data = { resting_hr: null, sleep_hours: null, hrv: null };
