@@ -13,9 +13,9 @@
 //   { "resting_hr": 50, "sleep_hours": 7.3, "hrv": 42 }
 
 import { writeFileSync } from "fs";
-//import { CorosClient } from "jsr:@pinta365/coros";
+import { CorosClient } from "jsr:@pinta365/coros";
 // or with deno.json imports: import { CorosClient } from "@pinta365/coros";
-import { CorosClient } from "@pinta365/coros"; // ajusta el import según la doc actual de la librería
+// import { CorosClient } from "@pinta365/coros"; // ajusta el import según la doc actual de la librería
 
 async function main() {
   const email = process.env.COROS_EMAIL;
