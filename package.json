@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "@jsr/pinta365__coros": "^0.0.1"  // adjust version as needed
+    "@jsr/pinta365__coros": "^0.0.1"
   }
 }
