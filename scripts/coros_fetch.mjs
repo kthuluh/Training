@@ -42,7 +42,7 @@ async function main() {
    };
   // ---------------------------------------------------------------------
 
-  const data = { resting_hr: null, sleep_hours: null, hrv: null };
+  //const data = { resting_hr: null, sleep_hours: null, hrv: null };
   writeFileSync("coros_data.json", JSON.stringify(data, null, 2));
   console.log("coros_data.json escrito (completa las llamadas reales de la librería arriba).");
 }
