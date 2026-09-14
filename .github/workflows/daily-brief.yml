@@ -31,8 +31,8 @@ jobs:
         with:
            node-version: "20"
       
-      - name: Install Node deps
-        run: npm install
+      - name: Install dependencies
+        run: npx jsr add @pinta365/coros
   
       - name: Fetch Coros data
         env:
