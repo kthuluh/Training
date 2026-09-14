@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "@jsr/pinta365__coros": "^0.0.1"
+    "@jsr/pinta365/coros"
   }
 }
