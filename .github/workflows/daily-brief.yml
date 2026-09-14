@@ -27,14 +27,15 @@ jobs:
       # de Coros (ver README). Si no, el script de Python sigue funcionando
       # sin datos de Coros (usa solo Strava).
       - name: Set up Node
-         uses: actions/setup-node@v4
-         with:
+        uses: actions/setup-node@v4
+        with:
            node-version: "20"
+
       - name: Fetch Coros data
-         env:
+        env:
            COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
            COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
-         run: node scripts/coros_fetch.mjs
+        run: node scripts/coros_fetch.mjs
       # ---------------------------------------------------------------------
 
       - name: Build and send daily brief
