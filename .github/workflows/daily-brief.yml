@@ -30,7 +30,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
            node-version: "20"
-
+      
+      - name: Install Node deps
+        run: npm install
+  
       - name: Fetch Coros data
         env:
            COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
