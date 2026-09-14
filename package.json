@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "jsr:@pinta365/coros"
+    "@pinta365/coros": "npm:@pinta365/coros"
   }
 }
