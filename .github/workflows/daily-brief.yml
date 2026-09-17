@@ -2,14 +2,18 @@ name: Daily training + diet brief
 
 on:
   schedule:
-    # 05:00 UTC = 07:00 hora de España (CEST) / 06:00 en horario de invierno (CET)
+    # 05:00 UTC = 07:00 hora de España (CEST) / 06:00 en horario de invierno (CET).
     # Ajusta la hora si quieres que llegue a otra hora local.
-    - cron: "0 1 * * *"
+    - cron: "0 5 * * *"
   workflow_dispatch: {}   # permite lanzarlo a mano desde la pestaña Actions para probar
 
 jobs:
   send-brief:
     runs-on: ubuntu-latest
+    env:
+      # Para que "hoy" y "ayer" signifiquen lo mismo aquí que en tu muñeca:
+      # Coros agrupa por días locales y el plan también se indexa por día.
+      TZ: Europe/Madrid
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -22,25 +26,38 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      # --- Bloque opcional de Coros --------------------------------------
-      # Descomenta este step SOLO si aceptas usar la librería no oficial
-      # de Coros (ver README). Si no, el script de Python sigue funcionando
-      # sin datos de Coros (usa solo Strava).
+      # --- Coros (opcional, librería NO oficial: @pinta365/coros) ----------
+      # Si no defines COROS_EMAIL / COROS_PASSWORD como secretos, este paso
+      # sale sin hacer nada y el correo va solo con Strava.
+      #
+      # `continue-on-error: true` es a propósito: es una API privada que Coros
+      # puede cambiar cuando quiera; si un día rompe, no queremos quedarnos sin
+      # correo. Ver README (paso 4) para el porqué y cómo depurarlo.
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-           node-version: "22"
-      
-      - name: Install dependencies
+          node-version: "22"
+
+      - name: Instalar dependencias de JSR (@pinta365/coros)
         run: |
-          npm install -g jsr
-          jsr add @pinta365/coros
-  
-      - name: Fetch Coros data
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            echo "No hay package-lock.json en el repo → npm install (recomendado: generar el lock y subirlo)."
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Fetch Coros → coros_data.json
+        continue-on-error: true
         env:
-           COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
-           COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
-        run: node scripts/coros_fetch.mjs
+          COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
+          COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
+          # España = eu; en=Americas, cn=China
+          COROS_REGION: eu
+          # al correo solo le hace falta el día de hoy + contexto
+          COROS_DAYS: "30"
+        run: node --experimental-strip-types scripts/coros_fetch.mjs
+
       # ---------------------------------------------------------------------
 
       - name: Build and send daily brief

@@ -2,6 +2,7 @@ name: Update dashboard
 
 on:
   schedule:
+    # 05:05 UTC, justo después del correo (05:00) para no pisarse.
     - cron: "5 5 * * *"
   workflow_dispatch: {}
 
@@ -11,6 +12,8 @@ permissions:
 jobs:
   update-dashboard:
     runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Madrid
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -26,7 +29,36 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Update dashboard from Strava
+      # --- Coros (opcional): FC reposo, HRV, carga de entrenamiento --------
+      # Igual que en el correo: sin secretos de Coros este paso no hace nada y
+      # el dashboard se actualiza solo con Strava (las partes de Coros se
+      # quedan con el último valor que tuvieran, manual o automático).
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar dependencias de JSR (@pinta365/coros)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Fetch Coros → coros_data.json
+        continue-on-error: true
+        env:
+          COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
+          COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
+          COROS_REGION: eu
+          # histórico: cubre de sobra las 14 semanas del gráfico
+          COROS_DAYS: "120"
+        run: node --experimental-strip-types scripts/coros_fetch.mjs
+
+      # ---------------------------------------------------------------------
+
+      - name: Update dashboard from Strava + Coros
         env:
           STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
@@ -42,7 +74,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Sin cambios."
           else
-            git commit -m "Actualización automática del dashboard"
+            git commit -m "Actualización automática del dashboard (Strava + Coros)"
 
             BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
