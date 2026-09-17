@@ -3,25 +3,31 @@ Correo diario de entrenamiento + dieta + resumen (Kthuluh).
 
 Fuentes:
   - Strava API oficial (actividad de ayer + volumen de la semana).
-  - Coros: OPCIONAL, vía scripts/coros_fetch.mjs (no oficial). Si el
-    archivo coros_data.json no existe, el correo se manda igual sin
-    esos datos.
+  - Coros (OPCIONAL, no oficial): lee `coros_data.json`, que escribe
+    `scripts/coros_fetch.mjs` con la librería @pinta365/coros. FC reposo,
+    HRV nocturna y carga de entrenamiento (EvoLab). Si el archivo no existe
+    o está caído, el correo se manda igual sin esos datos.
 
 Variables de entorno requeridas (se configuran como GitHub Secrets):
   STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
   GMAIL_USER, GMAIL_APP_PASSWORD, EMAIL_TO
 """
 
-import json
 import os
 import smtplib
 import ssl
 from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
 
 import requests
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # para importar coros_data
+
+import coros_data
 
 # ---------------------------------------------------------------------------
 # 1. CONFIG — ajusta aquí si cambia algo de tu plan o tus datos
@@ -31,22 +37,32 @@ PLAN_START = date(2026, 9, 7)  # lunes = semana 1, día 1 del bloque 10K
 WEIGHT_KG = 73
 HR_REST = 50
 HR_MAX = 182
-COROS_DATA_PATH = Path(__file__).parent.parent / "coros_data.json"
 
-# Zonas de FC (Karvonen)
-HRR = HR_MAX - HR_REST
-def hr_zone(pct_lo, pct_hi):
-    lo = round(HR_REST + HRR * pct_lo)
-    hi = round(HR_REST + HRR * pct_hi)
+# Si True y Coros responde con una FC reposo, las zonas Karvonen del correo se
+# recalculan con ese valor en vez del HR_REST fijo de arriba. Útil si tu FC
+# reposo ha cambiado; ponlo False si prefieres zonas estables semana a semana.
+HR_REST_FROM_COROS = False
+
+# Zonas de FC (Karvonen). `zones_for` permite recalcularlas con la FC reposo
+# de hoy que viene de Coros si HR_REST_FROM_COROS está activado.
+def hr_zone(pct_lo, pct_hi, hr_rest=HR_REST):
+    hrr = HR_MAX - hr_rest
+    lo = round(hr_rest + hrr * pct_lo)
+    hi = round(hr_rest + hrr * pct_hi)
     return f"{lo}-{hi} bpm"
 
-ZONES = {
-    "Z1": hr_zone(0.50, 0.60),
-    "Z2": hr_zone(0.60, 0.70),
-    "Z3": hr_zone(0.70, 0.80),
-    "Z4": hr_zone(0.80, 0.90),
-    "Z5": hr_zone(0.90, 1.00),
-}
+
+def zones_for(hr_rest=HR_REST):
+    return {
+        "Z1": hr_zone(0.50, 0.60, hr_rest),
+        "Z2": hr_zone(0.60, 0.70, hr_rest),
+        "Z3": hr_zone(0.70, 0.80, hr_rest),
+        "Z4": hr_zone(0.80, 0.90, hr_rest),
+        "Z5": hr_zone(0.90, 1.00, hr_rest),
+    }
+
+
+ZONES = zones_for()
 
 # Plan semana a semana (18 semanas: 8 de bloque 10K + 10 de bloque 21K).
 # facil / calidad / larga = descripción de la sesión ese día.
@@ -154,12 +170,15 @@ def get_strava_summary(today):
 # ---------------------------------------------------------------------------
 
 def get_coros_summary():
-    if not COROS_DATA_PATH.exists():
+    """Resumen plano de Coros, o None si no hay archivo / está ilegible."""
+    data = coros_data.load()
+    if data is None:
         return None
-    try:
-        return json.loads(COROS_DATA_PATH.read_text())
-    except Exception:
+    s = coros_data.summary(data)
+    # Si el único dato es "stale" y todo lo demás vacío, tratamos como sin datos.
+    if all(s.get(k) is None for k in ("resting_hr", "hrv", "sleep_hours", "load_ratio")):
         return None
+    return s
 
 
 # ---------------------------------------------------------------------------
@@ -190,18 +209,91 @@ def get_today_plan(today):
 # 5. Componer y enviar el correo
 # ---------------------------------------------------------------------------
 
+def _coros_html(coros):
+    """Bloque 'Recuperación (Coros)' del correo; tolera huecos y datos viejos."""
+    if not coros:
+        return (
+            "<p style='color:#888'><i>Sin datos de Coros — FC reposo / sueño / HRV no incluidos hoy. "
+            "(Para activarlos: README, paso 4.)</i></p>"
+        )
+
+    rhr = coros.get("resting_hr")
+    hrv, hrv_base = coros.get("hrv"), coros.get("hrv_base")
+    sleep = coros.get("sleep_hours")
+    ratio = coros.get("load_ratio")
+
+    def item(label, value):
+        return (
+            f"<td style='padding:8px 14px 8px 0;vertical-align:top'>"
+            f"<div style='font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888'>{label}</div>"
+            f"<div style='font-size:17px;font-weight:600'>{value}</div></td>"
+        )
+
+    hrv_txt = "—"
+    if hrv is not None:
+        hrv_txt = f"{hrv:.0f} ms"
+        if hrv_base:
+            delta = hrv - hrv_base
+            hrv_txt += f" <span style='font-size:12px;color:#888'>({delta:+.0f} vs base {hrv_base:.0f})</span>"
+
+    sleep_txt = coros_data.fmt_hours(sleep) if sleep is not None else "—"
+    rhr_txt = f"{rhr:.0f} bpm" if rhr is not None else "—"
+    ratio_txt = f"{ratio:.2f}" if ratio is not None else "—"
+
+    cells = "".join(
+        [
+            item("FC reposo", rhr_txt),
+            item("Sueño", sleep_txt),
+            item("HRV", hrv_txt),
+            item("Ratio de carga", ratio_txt),
+        ]
+    )
+
+    notes = []
+    if rhr is not None and rhr >= HR_REST + 4:
+        notes.append(f"FC reposo {rhr - HR_REST:.0f} bpm por encima de tu referencia ({HR_REST}): toca sesión suave si la notabas dura.")
+    if hrv is not None and hrv_base and hrv < hrv_base - 8:
+        notes.append(f"HRV baja vs su baseline ({hrv - hrv_base:+.0f} ms): considera recortar la calidad de hoy.")
+    if ratio is not None:
+        if ratio < 0.8:
+            notes.append("Ratio de carga por debajo de 0.8 — hay margen para meter volumen.")
+        elif ratio > 1.3:
+            notes.append("Ratio de carga por encima de 1.3 — riesgo de pico de fatiga; prioriza dormir.")
+    if sleep is not None and sleep < 6.5:
+        notes.append("Menos de 6,5 h de sueño: baja la intensidad prevista.")
+    if coros.get("stale"):
+        notes.append("Datos de Coros de ayer o más viejos (el fetch falló esta madrugada).")
+    for w in coros.get("warnings") or []:
+        notes.append(f"Coros: {w}")
+
+    notes_html = (
+        "<ul style='margin:8px 0 0 18px;padding:0;font-size:13px;color:#555'>"
+        + "".join(f"<li>{n}</li>" for n in notes)
+        + "</ul>"
+        if notes
+        else ""
+    )
+    date_txt = f" · día {coros['date']}" if coros.get("date") else ""
+
+    return (
+        "<h3 style='margin-bottom:4px'>Recuperación (Coros)</h3>"
+        f"<table style='border-collapse:collapse'><tr>{cells}</tr></table>"
+        f"<div style='font-size:11px;color:#888'>Fuente: Coros EvoLab vía @pinta365/coros (API no oficial){date_txt}"
+        f"{' · ' + 'datos de ayer o más viejos' if coros.get('stale') else ''}</div>"
+        f"{notes_html}"
+    )
+
+
 def build_email_html(today, plan, strava, coros):
     diet = DIET[plan["session_type"]]
+    coros_html = _coros_html(coros)
 
-    coros_html = ""
-    if coros:
-        coros_html = f"""
-        <p><b>FC reposo hoy:</b> {coros.get('resting_hr', '-')} bpm ·
-        <b>Sueño anoche:</b> {coros.get('sleep_hours', '-')} h ·
-        <b>HRV:</b> {coros.get('hrv', '-')} ms</p>
-        """
-    else:
-        coros_html = "<p><i>(Sin datos de Coros configurados en este correo.)</i></p>"
+    # Zonas Karvonen: con la FC reposo de Coros si HR_REST_FROM_COROS y hay dato.
+    hr_rest = HR_REST
+    if HR_REST_FROM_COROS and coros and coros.get("resting_hr"):
+        hr_rest = int(round(coros["resting_hr"]))
+    zones = zones_for(hr_rest)
+    zone_note = "" if hr_rest == HR_REST else f" (recalculadas con tu FC reposo de hoy: {hr_rest})"
 
     nota_html = f"<p><b>⚠️ {plan['nota']}</b></p>" if plan.get("nota") else ""
 
@@ -217,8 +309,8 @@ def build_email_html(today, plan, strava, coros):
     <p>{plan['session_desc']}</p>
     {nota_html}
     <p style="font-size:12px;color:#888;">
-    Zonas de FC (Karvonen, reposo {HR_REST} / máx {HR_MAX}):
-    Z1 {ZONES['Z1']} · Z2 {ZONES['Z2']} · Z3 {ZONES['Z3']} · Z4 {ZONES['Z4']} · Z5 {ZONES['Z5']}
+    Zonas de FC (Karvonen, reposo {hr_rest} / máx {HR_MAX}){zone_note}:
+    Z1 {zones['Z1']} · Z2 {zones['Z2']} · Z3 {zones['Z3']} · Z4 {zones['Z4']} · Z5 {zones['Z5']}
     </p>
 
     <h3>Dieta de hoy ({plan['session_type']})</h3>
@@ -249,9 +341,19 @@ def main():
 
     strava = get_strava_summary(today)
     coros = get_coros_summary()
+    print(f"Coros: {'OK — ' + str(coros.get('date')) if coros else 'sin datos (el correo sale solo con Strava)'}")
 
     html = build_email_html(today, plan, strava, coros)
     subject = f"🏃 Tu arranque del día — {today.strftime('%d %b %Y')}"
+
+    # DRY_RUN=1 → imprime el correo en vez de enviarlo (para probar el pipeline
+    # entero en local sin Spam ni Gmail). En GitHub Actions no se pone.
+    if os.environ.get("DRY_RUN"):
+        print("--- DRY RUN: correo NO enviado ---")
+        print("Asunto:", subject)
+        print(html)
+        return
+
     send_email(subject, html)
     print("Correo enviado.")
 

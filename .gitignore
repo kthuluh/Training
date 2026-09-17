@@ -1,0 +1,19 @@
+# Node / dependencias de la librería de Coros
+node_modules/
+npm-debug.log*
+
+# Datos generados (salida del fetch de Coros: NO se sube al repo —
+# contiene datos de salud y es efímero, se regenera en cada workflow)
+coros_data.json
+
+# Caché del token de sesión de Coros (si usas COROS_TOKEN_FILE en local)
+.coros_token
+.coros_token.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# varios
+.DS_Store

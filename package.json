@@ -1,5 +1,21 @@
 {
+  "name": "kthuluh-training",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Daily brief + dashboard: Strava (API oficial) + Coros (librería no oficial @pinta365/coros)",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "coros": "node --experimental-strip-types scripts/coros_fetch.mjs",
+    "coros:debug": "COROS_DEBUG=1 node --experimental-strip-types scripts/coros_fetch.mjs",
+    "coros:deno": "deno run -A scripts/coros_fetch.mjs",
+    "add-jsr-deps": "npx jsr add @pinta365/coros @cross/fs",
+    "dashboard:coros": "python scripts/update_dashboard.py --only-coros"
+  },
   "dependencies": {
-    "@pinta365/coros": "npm:@pinta365/coros"
+    "@cross/fs": "npm:@jsr/cross__fs@^0.1.14",
+    "@pinta365/coros": "npm:@jsr/pinta365__coros@^0.0.1"
   }
 }

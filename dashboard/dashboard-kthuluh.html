@@ -152,11 +152,11 @@
     </div>
   </div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="num">50</div><div class="lbl">FC reposo media (bpm)</div></div>
+    <div class="hero-stat"><div class="num"><!--AUTO:HERO_RHR-->50<!--/AUTO:HERO_RHR--></div><div class="lbl">FC reposo media (bpm)</div></div>
     <div class="hero-stat"><div class="num">182</div><div class="lbl">FC máx observada (10K)</div></div>
     <div class="hero-stat"><div class="num">73 kg</div><div class="lbl">peso (confirmado)</div></div>
     <div class="hero-stat"><div class="num">46</div><div class="lbl">edad</div></div>
-    <div class="hero-stat"><div class="num">0.60</div><div class="lbl">ratio de carga hoy</div></div>
+    <div class="hero-stat"><div class="num"><!--AUTO:HERO_RATIO-->0.60<!--/AUTO:HERO_RATIO--></div><div class="lbl">ratio de carga hoy</div></div>
   </div>
   <svg class="elevation-svg" viewBox="0 0 400 70" preserveAspectRatio="none"><polyline points="0,60 20,55 40,58 60,40 80,45 100,20 120,30 140,15 160,25 180,10 200,22 220,35 240,18 260,30 280,45 300,38 320,50 340,42 360,55 380,48 400,58" fill="none" stroke="#CFE0D2" stroke-width="1.5"/></svg>
 </header>
@@ -179,8 +179,8 @@
     <div class="section-title">Estado actual</div>
     <div class="grid3">
       <div class="card"><h3>Peso</h3><div class="big">73 kg</div><div class="sub">Confirmado por ti. El perfil de Coros todavía marca 70 kg — actualízalo ahí para que ambas plataformas coincidan.</div></div>
-      <div class="card"><h3>FC reposo (14 días)</h3><div class="big">50 bpm</div><div class="sub">Rango 46–57 bpm. Buen nivel para tu edad, con variabilidad ligada a días de mucho volumen.</div></div>
-      <div class="card"><h3>HRV base (Coros)</h3><div class="big">42 ms</div><div class="sub">Baseline oficial de Coros sobre las últimas 2 semanas.</div></div>
+      <div class="card"><h3>FC reposo (14 días)</h3><div class="big"><!--AUTO:RHR_CARD-->50 bpm<!--/AUTO:RHR_CARD--></div><div class="sub"><!--AUTO:RHR_CARD_SUB-->Rango 46–57 bpm. Buen nivel para tu edad, con variabilidad ligada a días de mucho volumen.<!--/AUTO:RHR_CARD_SUB--></div></div>
+      <div class="card"><h3>HRV (Coros)</h3><div class="big"><!--AUTO:HRV_CARD-->42 ms<!--/AUTO:HRV_CARD--></div><div class="sub"><!--AUTO:HRV_CARD_SUB-->Baseline oficial de Coros sobre las últimas 2 semanas.<!--/AUTO:HRV_CARD_SUB--></div></div>
     </div>
 
     <div class="section-title">Frecuencia cardíaca en reposo — últimos 30 días</div>
@@ -189,12 +189,12 @@
     <div class="section-title">Carga de entrenamiento (Coros) — últimos 14 días</div>
     <div class="card">
       <div class="chart-wrap"><canvas id="chartLoad"></canvas></div>
-      <div class="sub" style="margin-top:10px;">Carga corto plazo vs. largo plazo. Ratio actual 0.67 → "Performance", es decir estás por debajo de tu carga habitual (normal tras la tirada larga hilly del 30/8 y el descanso relativo de esta semana). Hay margen para meter más volumen.</div>
+      <div class="sub" style="margin-top:10px;"><!--AUTO:LOAD_CAPTION-->Carga corto plazo (7 días) vs. largo plazo (28 días, Base Fitness). Ratio actual 0.67 → "Performance", es decir estás por debajo de tu carga habitual (normal tras la tirada larga hilly del 30/8 y el descanso relativo de esta semana). Hay margen para meter más volumen.<!--/AUTO:LOAD_CAPTION--></div>
     </div>
 
     <div class="section-title">Sueño (media últimos 14 días)</div>
     <div class="grid3">
-      <div class="card"><h3>Duración media</h3><div class="big">7h 03m</div><div class="sub">Rango 4h18m–9h07m. Las noches más cortas coinciden con días de +20.000 pasos.</div></div>
+      <div class="card"><h3>Duración media</h3><div class="big"><!--AUTO:SLEEP_14D_AVG-->7h 03m<!--/AUTO:SLEEP_14D_AVG--></div><div class="sub"><!--AUTO:SLEEP_14D_SUB-->Rango 4h18m–9h07m. Las noches más cortas coinciden con días de +20.000 pasos. <i style="font-size:10px;">(se automática solo si Coros expone horas de sueño — ver README)</i><!--/AUTO:SLEEP_14D_SUB--></div></div>
       <div class="card"><h3>Sueño profundo medio</h3><div class="big">~1h 06m</div><div class="sub">Buena proporción de sueño profundo cuando duermes más de 7h.</div></div>
       <div class="card"><h3>Pasos diarios</h3><div class="big">~13.790</div><div class="sub">Media de 14 días — baja por un par de días muy flojos (viaje/descanso), pero sigue siendo un nivel de actividad alto.</div></div>
     </div>
@@ -520,10 +520,10 @@
   new Chart(document.getElementById('chartRHR'), {
     type:'line',
     data:{
-      labels:['08/06','08/07','08/08','08/09','08/10','08/11','08/12','08/13','08/14','08/15','08/16','08/17','08/18','08/19','08/20','08/21','08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03'],
+      labels:/*AUTO:RHR30_LABELS*/['08/06','08/07','08/08','08/09','08/10','08/11','08/12','08/13','08/14','08/15','08/16','08/17','08/18','08/19','08/20','08/21','08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03']/*/AUTO:RHR30_LABELS*/,
       datasets:[{
         label:'FC reposo (bpm)',
-        data:[49,51,50,55,52,50,56,null,51,57,63,56,52,50,49,56,48,50,49,46,49,49,50,53,57,51,46,51,46],
+        data:/*AUTO:RHR30_DATA*/[49,51,50,55,52,50,56,null,51,57,63,56,52,50,49,56,48,50,49,46,49,49,50,53,57,51,46,51,46]/*/AUTO:RHR30_DATA*/,
         borderColor:'#3F5C46',
         backgroundColor:'rgba(63,92,70,0.12)',
         fill:true,
@@ -546,10 +546,10 @@
   new Chart(document.getElementById('chartLoad'), {
     type:'line',
     data:{
-      labels:['08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03','09/04'],
+      labels:/*AUTO:LOAD14_LABELS*/['08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03','09/04']/*/AUTO:LOAD14_LABELS*/,
       datasets:[
-        {label:'Carga corto plazo',data:[54,65,56,62,53,58,50,56,65,56,48,41,44,38],borderColor:'#A9552E',backgroundColor:'transparent',tension:0.3,pointRadius:2},
-        {label:'Carga largo plazo',data:[59,62,61,62,60,61,60,60,62,60,59,57,57,56],borderColor:'#35586B',backgroundColor:'transparent',tension:0.3,pointRadius:2,borderDash:[4,3]}
+        {label:'Carga corto plazo (t7d)',data:/*AUTO:LOAD14_SHORT*/[54,65,56,62,53,58,50,56,65,56,48,41,44,38]/*/AUTO:LOAD14_SHORT*/,borderColor:'#A9552E',backgroundColor:'transparent',tension:0.3,pointRadius:2},
+        {label:'Carga largo plazo (Base Fitness)',data:/*AUTO:LOAD14_LONG*/[59,62,61,62,60,61,60,60,62,60,59,57,57,56]/*/AUTO:LOAD14_LONG*/,borderColor:'#35586B',backgroundColor:'transparent',tension:0.3,pointRadius:2,borderDash:[4,3]}
       ]
     },
     options:{
@@ -625,6 +625,9 @@
   });
 
   // Weekly trend (volume bars + sleep/RHR lines, dual axis)
+  // Los lunes (YYYY-MM-DD) de cada etiqueta: solo los usa update_dashboard.py
+  // para casar los datos de Coros con su semana; no se pintan.
+  const WEEKLY_MONDAYS = /*AUTO:WEEKLY_MONDAYS*/['2026-06-15','2026-06-22','2026-06-29','2026-07-13','2026-07-20','2026-08-10','2026-08-17','2026-08-24','2026-08-31','2026-09-07','2026-09-14']/*/AUTO:WEEKLY_MONDAYS*/;
   new Chart(document.getElementById('chartWeeklyTrend'), {
     data:{
       labels:/*AUTO:WEEKLY_LABELS*/['15-21 jun','22-28 jun','29jun-5jul','13-19 jul','20-26 jul','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep*']/*/AUTO:WEEKLY_LABELS*/,
