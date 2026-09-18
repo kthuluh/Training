@@ -18,6 +18,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Node solo para poder ejecutar scripts/coros_fetch.mjs con COROS_FIXTURE
+      # (un test del pipeline de Coros). No hace falta `npm install`: la ruta de
+      # fixture no importa @pinta365/coros, así que seguimos sin red ni credenciales.
+      # Si node no estuviera, ese test se salta solo en vez de fallar.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       # Los tests no usan red ni credenciales: van con fixtures locales.
       # (update_dashboard.py importa `requests` dentro de un try/except, así que
       # no hace falta instalar dependencias.)
