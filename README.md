@@ -138,7 +138,7 @@ Variables de entorno que entiende el fetch (todas opcionales salvo email/pass):
 |---|---|---|
 | `COROS_EMAIL` / `COROS_PASSWORD` | — | login en Training Hub (secretos) |
 | `COROS_REGION` | `eu` | **tiene que ser la región de tu cuenta**; un token de otra región no vale |
-| `COROS_DAYS` | `120` | días de historia que se piden (30 vale para el correo; 120 cubre el gráfico de 14 semanas) |
+| `COROS_DAYS` | `120` | días de historia que se piden. El correo pide 30; el dashboard pide `370` (cubre las 14 semanas del gráfico y el año entero del gráfico mensual de FC reposo) |
 | `COROS_OUT` | `coros_data.json` en la raíz | dónde se escribe el JSON |
 | `COROS_TOKEN_FILE` | vacío | caché del token (`.coros_token`) para no loguear en cada ejecución; Coros rate-limea y logout en otro sitio invalida tokens |
 | `COROS_DEBUG` | vacío | `1` imprime **las claves reales** que devolvió la API |
@@ -156,6 +156,10 @@ Lo que usa el script es `client.getAnalyse({startDate, endDate})` (endpoint
 * `trainingLoadRatio` → **ratio de carga**
 * `tiredRateNew` → fatiga; `performance` → rendimiento (−1 = sin estimación)
 * `distance` / `duration` por día
+* **pasos** del día, si la respuesta trae alguna clave tipo `steps` /
+  `stepCount` / `dailySteps` (mira `STEPS_KEYS` en `scripts/coros_fetch.mjs`;
+  acepta el valor en miles, `14.2` → 14.200). Si no viene, `steps` queda `null`
+  y la tarjeta de pasos del dashboard se queda como esté (manual).
 
 **Horas de sueño: no.** `@pinta365/coros` 0.0.1 no tiene endpoint de sueño, solo
 HRV nocturna. El script aun así lo intenta: la respuesta de Coros trae más
@@ -184,11 +188,13 @@ mira la lista de claves. Si ves una de sueño con otro nombre, añádela a
                "load_ratio": 0.95, "fatigue": 12, "performance": 78,
                "distance_km": 8.2, "duration_min": 44, "has_data": true },
   "latest_14": { "resting_hr_avg": 50.1, "resting_hr_min": 46, "resting_hr_max": 55,
-                 "hrv_avg": 43.2, "sleep_hours_avg": null, "n_days": 12 },
-  "days":  [ { "date": "2026-09-16", "resting_hr": 49, ... }, ... ],  // 1 por día
+                 "hrv_avg": 43.2, "sleep_hours_avg": null, "steps_avg": 15420,
+                 "n_days": 12 },
+  "days":  [ { "date": "2026-09-16", "resting_hr": 49, "steps": 15420, ... }, ... ],  // 1 por día
   "weeks": [ { "week_start": "2026-09-14", "resting_hr": 50, "sleep_hours": null,
                "hrv": 43, "load_ratio": 0.9, "distance_km": 12.4, "n_days": 5 }, ... ],
-  "available": { "resting_hr": true, "hrv": true, "sleep_hours": false, "load_ratio": true },
+  "available": { "resting_hr": true, "hrv": true, "sleep_hours": false,
+                 "steps": true, "load_ratio": true },
   "warnings": [ "..." ],
   "resting_hr": 49, "sleep_hours": null, "hrv": 44   // claves planas legacy
 }
@@ -227,22 +233,77 @@ cada día con la FC reposo que mida tu Coros en vez del valor fijo.
 ## 7. Dashboard con auto-actualización
 
 `dashboard/dashboard-kthuluh.html` es tu dashboard. El workflow **Update
-dashboard** reescribe cada día los trozos marcados con comentarios `AUTO:`:
+dashboard** reescribe cada día los trozos marcados con comentarios `AUTO:`.
+Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 
-| Marcador | Fuente | Contenido |
-|---|---|---|
-| `UPDATED_DATE`, `MONTHLY_VOL`, `WEEKLY_LABELS`, `WEEKLY_VOL`, `CURRENT_WEEK` | Strava | fecha, barras mensuales, tendencia semanal, tarjeta de la semana en curso |
-| `WEEKLY_MONDAYS` | Strava | los lunes reales de cada barra (solo para alinear Coros; no se pinta) |
-| `HERO_RHR`, `HERO_RATIO` | Coros | cifras del encabezado |
-| `RHR_CARD`, `RHR_CARD_SUB`, `HRV_CARD`, `HRV_CARD_SUB` | Coros | tarjetas de "Estado actual" |
-| `RHR30_LABELS`, `RHR30_DATA` | Coros | gráfico FC reposo 30 días |
-| `LOAD14_LABELS`, `LOAD14_SHORT`, `LOAD14_LONG`, `LOAD_CAPTION` | Coros | gráfico de carga + texto explicativo |
-| `SLEEP_14D_AVG`, `SLEEP_14D_SUB` | Coros (solo si expone sueño) | tarjeta de sueño |
-| `WEEKLY_RHR`, `WEEKLY_SLEEP` | mezcla | FC reposo y sueño del gráfico semanal: se usa el dato de Coros si hay; si no, se **conserva tu valor manual** (indexado por lunes, no por posición, para que no se desplace al entrar semanas nuevas); si no hay ninguno, `null` (hueco en la línea, nunca un dato inventado) |
+| Pestaña | Marcadores | Fuente | Qué rellenan |
+|---|---|---|---|
+| Encabezado / pie | `UPDATED_DATE`, `FOOTER_INFO` | Strava + Coros | fecha y cobertura real de los datos |
+| Resumen general | `HERO_RHR`, `HERO_RATIO`, `RHR_CARD`, `RHR_CARD_SUB`, `HRV_CARD`, `HRV_CARD_SUB`, `STEPS_CARD`, `STEPS_CARD_SUB`, `SLEEP_14D_AVG`, `SLEEP_14D_SUB`, `LOAD_CAPTION`, `RHR30_LABELS`, `RHR30_DATA`, `LOAD14_LABELS`, `LOAD14_SHORT`, `LOAD14_LONG` | Coros | tarjetas del hero y de "Estado actual", gráficos de FC reposo (30 d) y carga (14 d) |
+| Entrenamiento | `PLAN_STATUS` | — | en qué semana de las 18 estás |
+| Entrenamiento | `ENTRENO_PB`, `ENTRENO_LAST4W`, `ENTRENO_VOL_NOTE`, `ENTRENO_STRENGTH_NOTE`, `CHARTVOL_LABELS`, `CHARTVOL_DATA`, `ZONES_META`, `ZONES_ROWS` | Strava | mejores marcas 10K/21K de los últimos 12 meses, resumen de las últimas 4 semanas, gráfico de volumen (8 semanas), tabla de zonas Karvonen y aviso de fuerza |
+| Dieta | `DIETA_ACTIVITY`, `DIETA_CONTEXT` | Coros + Strava | pasos reales de Coros y contexto de la semana (km, sesiones, ratio de carga) |
+| Hábitos | `HABIT_01_BODY`, `HABIT_02_BODY`, `HABIT_03_BODY`, `HABIT_05_BODY` | Strava + Coros | última sesión de fuerza, noches más cortas, salidas que se pasan del techo de Z2 y rampa de volumen |
+| Historial | `TREND_VOL_CARD`, `TREND_RHR_CARD`, `TREND_SLEEP_CARD`, `TREND_VERDICT` | Strava + Coros | las 4 últimas semanas completas frente a las 4 anteriores |
+| Historial | `RACES` | Strava | carreras del año (`workout_type = Race`) |
+| Historial | `MONTHLY_LABELS`, `MONTHLY_VOL`, `MONTHLY_RHR`, `MONTHLY_YEAR`, `MONTHLY_VOL_YEAR`, `MONTHLY_RHR_YEAR`, `MONTHLY_RANGE_TITLE`, `MONTHLY_CARDS` | Strava + Coros | gráficos mensuales (volumen y FC reposo) y tarjetas de mes |
+| Historial | `WEEKLY_LABELS`, `WEEKLY_VOL`, `WEEKLY_MONDAYS`, `WEEKLY_RHR`, `WEEKLY_SLEEP`, `WEEKLY_CARDS`, `CURRENT_WEEK`, `HIST_COVERAGE_NOTE` | Strava + Coros | 12 semanas completas + la semana en curso, con sueño y FC reposo si Coros los trae |
+| Recomendaciones | `RECOS` | Strava + Coros | la lista entera, generada por reglas |
 
-Para editar a mano una cifra de Coros: cambia el texto **entre** los
-comentarios `<!--AUTO:…-->` … `<!--/AUTO:…-->` y no se pisa solo si no hay
-dato de Coros para esa semana.
+Tres reglas que sigue el script (y que valen para todas las pestañas):
+
+1. **Nunca se inventa un dato.** Si Strava no devuelve actividades o Coros no
+   trae un campo, ese bloque se queda exactamente como estaba.
+2. **Sin datos, lo manual manda.** Puedes editar a mano cualquier cifra entre
+   `<!--AUTO:…-->` y `<!--/AUTO:…-->`: se conserva mientras no haya dato real
+   que la sustituya. Las tarjetas semanales y las líneas del gráfico de
+   tendencia van indexadas **por su lunes**, no por posición, así que al entrar
+   semanas nuevas tus valores no se desplazan.
+3. **Cada sección va aislada.** Si una falla (Strava, un marcador borrado, un
+   dato raro), el script anota `⚠ <sección> falló: …` en el log y sigue con las
+   demás. Antes, un fallo en cualquier punto dejaba el dashboard sin actualizar.
+
+### 7.1 Qué sigue siendo manual (a propósito)
+
+* Peso, edad y altura (no hay conector a una báscula; Coros sigue con 70 kg).
+* Las calorías y macros de la pestaña Dieta, que dependen del peso.
+* Sueño profundo: la librería de Coros no expone fases de sueño.
+* Las tablas del plan (bloques 10K/21K) y las 3 recomendaciones fijas.
+
+### 7.2 Probarlo a mano
+
+```bash
+python scripts/update_dashboard.py               # Strava + Coros (lo del workflow)
+python scripts/update_dashboard.py --only-coros  # solo la parte de Coros, sin Strava
+python scripts/update_dashboard.py --dry-run     # enseña lo que haría, no escribe
+```
+
+Variables que entiende para probar sin tocar el dashboard real:
+
+| Variable | Para qué |
+|---|---|
+| `DASHBOARD_PATH` | reescribir una **copia** del HTML en vez del real |
+| `STRAVA_FIXTURE` | path a un JSON con actividades crudas de Strava → no usa la API |
+| `COROS_DATA_PATH` | usar otro `coros_data.json` (por ejemplo uno de prueba) |
+| `HR_REST_FROM_COROS` | `1` → recalcula las zonas Karvonen con tu FC reposo real de Coros (en el correo el equivalente es `HR_REST_FROM_COROS` en `daily_brief.py`) |
+| `COROS_DEBUG` | `1` → imprime las claves reales que devuelve Coros (útil para ver si hay sueño o pasos) |
+
+### 7.3 Tests
+
+La lógica de cálculo vive en `scripts/dashboard_stats.py` (pura: sin red y sin
+HTML) y los tests la cubren con fixtures, sin credenciales:
+
+```bash
+python -m unittest discover -s tests -t .
+```
+
+Cubren que todos los marcadores existan (y una sola vez) en el HTML, que con
+datos los números salgan bien, que **sin datos no se toque nada**, que dos
+pasadas seguidas den el mismo HTML y que `PLAN_START`/`HR_REST`/`HR_MAX` sigan
+cuadrando con `scripts/daily_brief.py`. El workflow **Tests** los corre en cada
+push y en cada PR.
+
+### 7.4 Link fijo del dashboard
 
 **Para tener un link fijo que siempre muestre la última versión:**
 
@@ -270,17 +331,25 @@ Para probarlo ahora mismo sin esperar al cron: pestaña **Actions** →
 | Login OK pero `dayList` vacío | EvoLab sin activar en la cuenta, o región/periodo mal (`COROS_DAYS`) |
 | Coros inicia sesión desde el móvil y el bot deja de funcionar | Coros invalida tokens al loguear en otro sitio; con `continue-on-error` el correo sale igual, y con `COROS_TOKEN_FILE` + re-login automático se recupera solo |
 | El dashboard no cambia nada | no hay `coros_data.json` (mira el log del paso de Coros) o los datos no son de esta semana |
+| `⚠ <sección> falló: …` en el log de "Update dashboard" | esa sección se quedó con los valores anteriores y el resto sí se actualizó; el mensaje dice qué pasó (lo normal: marcador borrado del HTML al editarlo a mano) |
+| La tarjeta de pasos o la de sueño no se actualizan | Coros no devuelve ese campo: `COROS_DEBUG=1 node --experimental-strip-types scripts/coros_fetch.mjs` y mira las claves reales (`STEPS_KEYS` / `SLEEP_KEYS`) |
+| Los tests fallan al añadir un marcador al HTML | falta darlo de alta en la lista `HTML_MARKERS`/`JS_MARKERS` de `tests/test_dashboard.py` |
 
 ## 9. Ficheros
 
 ```
 .github/workflows/daily-brief.yml      correo diario (Strava + Coros)
 .github/workflows/update-dashboard.yml dashboard diario (Strava + Coros)
+.github/workflows/tests.yml            tests del dashboard (sin secretos)
 scripts/coros_fetch.mjs    Coros → coros_data.json   (Node 22.6+ / Deno)
 scripts/coros_data.py      lector compartido del JSON (tolerante a fallos)
+scripts/dashboard_stats.py cálculos puros del dashboard (semanal, mensual,
+                           tendencias, carreras, zonas Karvonen…) — testeable
 scripts/daily_brief.py     plan + dieta + Strava + Coros → correo
-scripts/update_dashboard.py  reescribe los bloques AUTO: del HTML
+scripts/update_dashboard.py  reescribe los bloques AUTO: del HTML (todas las pestañas)
 dashboard/dashboard-kthuluh.html  tu panel (GitHub Pages)
+tests/test_dashboard.py    tests del dashboard (fixtures, sin red)
+.github/workflows/tests.yml  corre esos tests en cada push y PR
 package.json / .npmrc      dependencias de JSR para Node
 requirements.txt           requests, para Strava
 ```

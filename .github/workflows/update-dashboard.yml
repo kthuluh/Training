@@ -52,8 +52,10 @@ jobs:
           COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
           COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
           COROS_REGION: eu
-          # histórico: cubre de sobra las 14 semanas del gráfico
-          COROS_DAYS: "120"
+          # Histórico: cubre las 14 semanas del gráfico de tendencia y también
+          # el gráfico de FC reposo mensual (que empieza en enero), así que se
+          # pide el año entero.
+          COROS_DAYS: "370"
         run: node --experimental-strip-types scripts/coros_fetch.mjs
 
       # ---------------------------------------------------------------------
