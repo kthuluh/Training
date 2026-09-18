@@ -73,7 +73,9 @@
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  @media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr;}}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  @media(max-width:900px){.grid4{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:640px){.grid2,.grid3,.grid4{grid-template-columns:1fr;}}
 
   .card{
     background:var(--card);border:1px solid var(--line);padding:18px 20px;
@@ -329,6 +331,20 @@
         <p><!--AUTO:HABIT_05_BODY-->Pasaste de 0,0 km (semana del 27 jul) a 47,1 km (semana del 17 ago) en 3 semanas. A partir de aquí, no subas más de un 10% de una semana a otra salvo semanas de descarga.<!--/AUTO:HABIT_05_BODY--></p>
       </div>
     </div>
+
+    <!-- Análisis del sueño. Aditivo: el bot rellena estos marcadores solo si
+         Coros trae `sleep_hours`; si no, se queda el texto de abajo (valores de
+         ejemplo coherentes con la tarjeta de sueño del Resumen general). -->
+    <div class="section-title"><!--AUTO:SLEEP_TITLE-->Análisis del sueño — últimos 30 días<!--/AUTO:SLEEP_TITLE--></div>
+    <!--AUTO:SLEEP_CARDS--><div class="grid4">
+      <div class="card"><h3>Media (29 noches)</h3><div class="big">7 h 04 m</div><div class="sub">Rango 4h18m–8h24m · objetivo 7h30m.</div></div>
+      <div class="card"><h3>Noches en objetivo</h3><div class="big">31%</div><div class="sub">9 de 29 noches por encima de 7h30m.</div></div>
+      <div class="card"><h3>Deuda de sueño</h3><div class="big">15 h 18 m</div><div class="sub">Horas por debajo del objetivo acumuladas en la ventana.</div></div>
+      <div class="card"><h3>Tendencia (7 vs 7)</h3><div class="big">7h08m <span class="delta down">▼8m</span></div><div class="sub">Últimas 7 noches frente a las 7 anteriores (7h16m).</div></div>
+    </div><!--/AUTO:SLEEP_CARDS-->
+    <div class="card" style="margin-top:14px;"><div class="chart-wrap"><canvas id="chartSleep"></canvas></div></div>
+    <div class="flag info" style="margin-top:14px;"><!--AUTO:SLEEP_VERDICT--><b>Sueño:</b> 7h04m de media en 29 noches — a 26m del objetivo de 7h30m. La última semana baja 8m respecto a la anterior.<!--/AUTO:SLEEP_VERDICT--></div>
+    <div class="card sub" style="margin-top:10px;"><!--AUTO:SLEEP_NOTES-->Las 3 noches más cortas de la ventana: 4h18m del 29/8 (21.340 pasos), 6h01m del 26/8 (19.880 pasos) y 6h01m del 28/8 (18.120 pasos) — coinciden con los días de más pasos. Coros solo expone <b>horas totales</b> por la API web: las fases (ligero/profundo/REM) exigirían la API móvil con claves del APK, que además desloguea el reloj del móvil, así que quedan fuera del repo a propósito.<!--/AUTO:SLEEP_NOTES--></div>
   </section>
 
   <!-- HISTORIAL -->
@@ -653,6 +669,43 @@
         y1:{position:'right',min:0,max:10,grid:{display:false},title:{display:true,text:'horas sueño'}},
         y2:{display:false,min:40,max:65},
         x:{grid:{display:false},ticks:{font:{size:9.5},maxRotation:60,minRotation:60}}
+      }
+    }
+  });
+
+  // Sueño — últimas 30 noches (Coros) contra el objetivo
+  new Chart(document.getElementById('chartSleep'), {
+    type:'line',
+    data:{
+      labels:/*AUTO:SLEEP30_LABELS*/['08/20','08/21','08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03','09/04','09/05','09/06','09/07','09/08','09/09','09/10','09/11','09/12','09/13','09/14','09/15','09/16','09/17','09/18']/*/AUTO:SLEEP30_LABELS*/,
+      datasets:[
+        {
+          label:'Sueño (h)',
+          data:/*AUTO:SLEEP30_DATA*/[7.2,6.8,7.5,8.1,7,6.5,6.02,7.4,6.02,4.3,8.4,7.6,7.1,6.9,7.3,7.8,6.6,8,7.2,6.7,7,7.5,6.4,7.6,7.1,6.8,7.4,7,7.6,null]/*/AUTO:SLEEP30_DATA*/,
+          borderColor:'#A9552E',
+          backgroundColor:'rgba(169,85,46,0.10)',
+          fill:true,
+          tension:0.35,
+          pointRadius:2,
+          spanGaps:true
+        },
+        {
+          label:'Objetivo (h)',
+          data:/*AUTO:SLEEP30_TARGET*/[7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5]/*/AUTO:SLEEP30_TARGET*/,
+          borderColor:'#3F5C46',
+          backgroundColor:'transparent',
+          borderDash:[4,3],
+          pointRadius:0,
+          tension:0
+        }
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:11}}}},
+      scales:{
+        y:{grid:{color:inkGrid},ticks:{stepSize:1},title:{display:true,text:'horas',font:{size:10}}},
+        x:{grid:{display:false},ticks:{maxTicksLimit:8}}
       }
     }
   });

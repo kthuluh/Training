@@ -68,4 +68,7 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          # Mismo objetivo de sueño que el dashboard (la línea del correo usa la
+          # misma cuenta). Vacío si la variable no existe → valor por defecto.
+          SLEEP_TARGET_HOURS: ${{ vars.SLEEP_TARGET_HOURS }}
         run: python scripts/daily_brief.py

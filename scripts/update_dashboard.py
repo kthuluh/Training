@@ -75,6 +75,9 @@ STRAVA_HISTORY_DAYS = 365 # ventana de actividades que se descarga
 PLAN_START = date(2026, 9, 7)  # lunes = semana 1 del bloque 10K
 HR_REST = 50
 HR_MAX = 182
+# Objetivo de sueño del bloque de Hábitos (y de la línea del correo). Se puede
+# pisar sin tocar el código: SLEEP_TARGET_HOURS=8 como variable del workflow.
+SLEEP_TARGET_HOURS = float(os.environ.get("SLEEP_TARGET_HOURS") or stats.SLEEP_TARGET_HOURS)
 HR_REST_FROM_COROS = os.environ.get("HR_REST_FROM_COROS", "").strip().lower() in {"1", "true", "yes", "si", "sí"}
 
 MESES = stats.MESES
@@ -763,6 +766,147 @@ def apply_habitos(html, acts, coros, today, notes):
 
 
 # ---------------------------------------------------------------------------
+# Sueño — bloque al final de Hábitos
+#
+# Todo sale de `stats.sleep_analysis`, que devuelve None en cuanto falta el
+# dato. Aquí no se redondea hacia arriba ni se rellena ningún hueco: si Coros no
+# trae `sleep_hours`, el bloque se queda exactamente como estaba en el HTML.
+# ---------------------------------------------------------------------------
+
+def build_sleep_cards(a):
+    """Las 4 tarjetas del bloque de sueño (.grid4).
+
+    Recibe solo el dict de `stats.sleep_analysis`, así que no tiene de dónde
+    sacarse un número: lo que falta sale como "—". Con `n == 0` devuelve None en
+    vez de pintar "None%" — hoy `apply_sleep` ya sale antes, pero así un
+    refactor no puede colar una tarjeta inventada.
+    """
+    if not a.get("n"):
+        return None
+    target = stats.fmt_minutes(a["target"])
+    noches = "noche" if a["n"] == 1 else "noches"
+    if a["delta7"] is None:
+        trend_big = "—"
+        trend_sub = "Hacen falta 14 noches con dato para comparar una semana con la anterior."
+    else:
+        trend_big = f'{fmt_hours_compact(a["last7"])} {delta_span(a["last7"], a["prev7"], kind="hours")}'
+        trend_sub = f'Últimas 7 noches frente a las 7 anteriores ({fmt_hours_compact(a["prev7"])}).'
+    return (
+        '<div class="grid4">\n'
+        f'      <div class="card"><h3>Media ({a["n"]} {noches})</h3><div class="big">{fmt_hours(a["mean"])}</div>'
+        f'<div class="sub">Rango {stats.fmt_minutes(a["lo"])}–{stats.fmt_minutes(a["hi"])} · objetivo {target}.</div></div>\n'
+        f'      <div class="card"><h3>Noches en objetivo</h3><div class="big">{a["on_target_pct"]}%</div>'
+        f'<div class="sub">{a["n"] - a["below"]} de {a["n"]} {noches} por encima de {target}.</div></div>\n'
+        f'      <div class="card"><h3>Deuda de sueño</h3><div class="big">{fmt_hours(a["debt_h"])}</div>'
+        f'<div class="sub">Horas por debajo del objetivo acumuladas en los últimos {a["days"]} días.</div></div>\n'
+        f'      <div class="card"><h3>Tendencia (7 vs 7)</h3><div class="big">{trend_big}</div>'
+        f'<div class="sub">{trend_sub}</div></div>\n'
+        '    </div>'
+    )
+
+
+def build_sleep_notes(a, coros):
+    """Noches peores + lo que Coros no da (las fases), que conviene que se lea.
+
+    Las peores salen de `a["series"]`, no de `stats.sleep_short_nights`: así las
+    notas miran exactamente la misma ventana que las tarjetas y el gráfico.
+    """
+    bits = []
+    pasos = {}
+    for d in (coros or {}).get("days", []):
+        try:
+            day = date.fromisoformat(str(d.get("date"))[:10])
+        except (ValueError, TypeError):
+            continue
+        s = stats.as_number(d.get("steps"))
+        if s is not None:
+            pasos[day] = s
+
+    # `series` ya viene ordenado por fecha, y sorted() es estable: a igualdad de
+    # horas gana la noche más antigua, así que el texto no baila entre ejecuciones.
+    peores = sorted(a["series"], key=lambda r: r[1])[:3]
+    if peores:
+        def one(item):
+            dia, horas = item
+            txt = f"{stats.fmt_minutes(horas)} del {dia.day}/{dia.month}"
+            if dia in pasos:
+                txt += f" ({fmt_miles(pasos[dia])} pasos)"
+            return txt
+        bits.append("Las noches más cortas de la ventana: " + ", ".join(one(x) for x in peores) + ".")
+    if a["worst"] is not None and a["best"] is not None:
+        gap = a["best"]["hours"] - a["worst"]["hours"]
+        bits.append(
+            f"De la mejor noche ({stats.fmt_minutes(a['best']['hours'])} del "
+            f"{a['best']['date'].day}/{a['best']['date'].month}) a la peor "
+            f"({stats.fmt_minutes(a['worst']['hours'])} del {a['worst']['date'].day}/{a['worst']['date'].month}) "
+            f"hay {stats.fmt_minutes(gap)} de diferencia — mucha irregularidad, y es lo primero que se puede arreglar."
+        )
+    bits.append(
+        "Coros solo expone <b>horas totales</b> de sueño por la API web: las fases "
+        "(ligero/profundo/REM) exigirían la API móvil con claves sacadas del APK y esa "
+        "llamada desloguea el reloj del móvil, así que quedan fuera del repo a propósito."
+    )
+    return " ".join(bits)
+
+
+def apply_sleep(html, coros, today, notes=None):
+    """Tarjetas, gráfico y veredicto del sueño (pestaña Hábitos).
+
+    Si Coros no trae `sleep_hours` —la API web no tiene endpoint de sueño— no se
+    toca nada: el bloque conserva el texto manual y en `notes` queda dicho por
+    qué, con la pista de `COROS_DEBUG=1` para comprobarlo con tu cuenta.
+    """
+    notes = notes if notes is not None else []
+    a = stats.sleep_analysis(coros, today, days=stats.SLEEP_WINDOW_DAYS, target=SLEEP_TARGET_HOURS)
+
+    if a["n"] == 0:
+        if has_marker(html, "SLEEP_CARDS"):
+            notes.append(
+                "sueño (Hábitos): Coros no expone sleep_hours → el bloque se queda manual "
+                "(ejecuta el fetcher con COROS_DEBUG=1 para ver las claves reales de tu cuenta)"
+            )
+        return html
+
+    if has_marker(html, "SLEEP_TITLE"):
+        html = replace_marked_html(
+            html, "SLEEP_TITLE",
+            f"Análisis del sueño — últimos {a['days']} días "
+            f"({a['n']} {'noche' if a['n'] == 1 else 'noches'} con dato · "
+            f"Coros {esc((coros or {}).get('date') or '—')})",
+        )
+
+    cards = build_sleep_cards(a)
+    if cards:
+        html = set_html(
+            html, "SLEEP_CARDS", cards, notes,
+            f"sueño: media {stats.fmt_minutes(a['mean'])} en {a['n']} "
+            f"{'noche' if a['n'] == 1 else 'noches'} · veredicto '{a['verdict']}'",
+        )
+    verdict = stats.sleep_verdict(a)
+    if verdict:
+        html = set_html(html, "SLEEP_VERDICT", f"<b>Sueño:</b> {verdict}")
+    html = set_html(html, "SLEEP_NOTES", build_sleep_notes(a, coros))
+
+    # Gráfico: misma forma que el de FC reposo (30 días, null donde no hay dato),
+    # con la línea del objetivo encima para que el hueco se vea de un vistazo.
+    days = coros_data.by_date(coros)
+    last = [days[d] for d in sorted(days)[-a["days"]:]]
+    values = [stats.as_number(d.get("sleep_hours")) for d in last]
+    if any(v is not None for v in values):
+        if has_marker(html, "SLEEP30_LABELS", marker_html=False):
+            html = replace_marked(html, "SLEEP30_LABELS",
+                                  js_list([d["date"][5:].replace("-", "/") for d in last], quote=True))
+        if has_marker(html, "SLEEP30_DATA", marker_html=False):
+            html = replace_marked(html, "SLEEP30_DATA",
+                                  js_list([round(v, 2) if v is not None else None for v in values]))
+        if has_marker(html, "SLEEP30_TARGET", marker_html=False):
+            html = replace_marked(html, "SLEEP30_TARGET", js_list([a["target"]] * len(values)))
+        notes.append(f"gráfico de sueño: {sum(1 for v in values if v is not None)}/{len(values)} noches con dato")
+
+    return html
+
+
+# ---------------------------------------------------------------------------
 # Historial
 # ---------------------------------------------------------------------------
 
@@ -1280,7 +1424,10 @@ def main():
         html = safe(html, "Resumen (Coros)", lambda h: apply_coros(h, coros, today, notes), notes)
         html = safe(html, "líneas semanales", lambda h: reconcile_weekly_lines(h, mondays, coros, manual_by_week, notes), notes)
         html = safe(html, "encabezado/pie", lambda h: apply_header_footer(h, acts, coros, today, notes), notes)
-        notes.append("modo --only-coros: Strava no se toca (entreno, dieta, hábitos, historial, recos)")
+        # El bloque de sueño vive en Hábitos pero solo bebe de Coros: aquí sí toca.
+        html = safe(html, "Sueño (Hábitos)", lambda h: apply_sleep(h, coros, today, notes), notes)
+        notes.append("modo --only-coros: Strava no se toca (entreno, dieta, historial, recos) "
+                     "y de Hábitos solo el bloque de sueño, que es de Coros")
     else:
         acts = load_activities(today)
         print(f"· Strava: {len(acts)} actividades (últimos {STRAVA_HISTORY_DAYS} días), "
@@ -1296,6 +1443,7 @@ def main():
         html = safe(html, "Entrenamiento", lambda h: apply_entreno(h, acts, coros, today, notes), notes)
         html = safe(html, "Dieta", lambda h: apply_dieta(h, acts, coros, today, notes), notes)
         html = safe(html, "Hábitos", lambda h: apply_habitos(h, acts, coros, today, notes), notes)
+        html = safe(html, "Sueño (Hábitos)", lambda h: apply_sleep(h, coros, today, notes), notes)
         result = safe_result(html, "Historial", lambda h: apply_historial(h, acts, coros, today, notes), notes)
         html, mondays_iso = result
         html = safe(html, "líneas semanales", lambda h: reconcile_weekly_lines(h, mondays_iso, coros, manual_by_week, notes), notes)

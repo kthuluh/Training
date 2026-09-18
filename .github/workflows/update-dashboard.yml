@@ -65,6 +65,11 @@ jobs:
           STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          # Objetivo de sueño del bloque de Hábitos. Se cambia desde
+          # Settings → Secrets and variables → Actions → Variables (SLEEP_TARGET_HOURS)
+          # sin tocar el código. Si la variable no existe llega vacío y el
+          # script cae en su valor por defecto (7.5 en scripts/dashboard_stats.py).
+          SLEEP_TARGET_HOURS: ${{ vars.SLEEP_TARGET_HOURS }}
         run: python scripts/update_dashboard.py
 
       - name: Commit and push (always overwrite remote)

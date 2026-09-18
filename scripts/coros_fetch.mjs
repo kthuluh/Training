@@ -52,6 +52,22 @@
  *   trae más campos de los que la librería tipa) y, si la encuentra, la usa.
  *   Si no la hay, `sleep_hours` queda `null` y el correo/dashboard lo marcan
  *   como manual. Usa COROS_DEBUG=1 una vez para ver los nombres reales.
+ *
+ * ── Las fases del sueño NO se piden, a propósito ───────────────────────────
+ *   Ligero / profundo / REM solo salen por la API **móvil** de Coros, que se
+ *   autentica con claves sacadas del APK de la app. Dos problemas, y el segundo
+ *   es el que manda:
+ *
+ *     1. Esas claves no son públicas y cambian con cada versión de la app, así
+ *        que un cron de GitHub las rompería en cuanto Coros actualizara.
+ *     2. El login móvil **invalida la sesión del teléfono**: ejecutarlo cada
+ *        madrugada desloguearía el reloj del móvil del usuario.
+ *
+ *   Por eso el contrato lo deja explícito en vez de callarse: el payload sale
+ *   con `available.sleep_phases = false` y ningún día trae fases. Quien pinta
+ *   (dashboard, correo) lo dice en vez de insinuar un dato que no existe. Con
+ *   COROS_DEBUG=1 se imprimen las claves con pinta de sueño que sí llegaron,
+ *   para poder confirmar qué expone tu cuenta en concreto.
  */
 
 const DEBUG = ["1", "true", "yes"].includes((process.env.COROS_DEBUG ?? "").toLowerCase());
@@ -268,6 +284,22 @@ async function main() {
     if (DEBUG && rawDays.length > 0) {
         console.log("· Claves reales de un día de analyse/query:");
         console.log("  " + Object.keys(rawDays[0]).sort().join(", "));
+        // Lo que de verdad importa para el bloque de sueño: qué claves tienen
+        // pinta de sueño y si sleepHoursOf() saca algo de la primera.
+        const conPinta = Object.keys(rawDays[0]).filter((k) => /sleep|nap|bed|rest/i.test(k)).sort();
+        console.log(
+            conPinta.length
+                ? `· Claves con pinta de sueño: ${conPinta.join(", ")}`
+                : "· Ninguna clave con pinta de sueño (sleep/nap/bed/rest) en la respuesta.",
+        );
+        const horasPrimero = sleepHoursOf(rawDays[0]);
+        console.log(
+            `· sleepHoursOf() del primer día: ${horasPrimero === null ? "null → sleep_hours queda manual" : `${horasPrimero} h`}`,
+        );
+        console.log(
+            "· Fases (ligero/profundo/REM): no se piden — exigen la API móvil con claves del APK " +
+                "y ese login desloguea el reloj del móvil. Fuera del repo a propósito.",
+        );
     }
 
     // 2) Índice por fecha (Coros omite días sin datos) y calendario completo.
@@ -348,6 +380,11 @@ async function main() {
         sleep_hours: series.some((d) => d.sleep_hours !== null),
         steps: series.some((d) => d.steps !== null),
         load_ratio: series.some((d) => d.load_ratio !== null),
+        // Siempre false y a propósito: las fases (ligero/profundo/REM) solo salen
+        // por la API móvil, que pide claves del APK y desloguea el reloj del
+        // móvil. Se declara explícitamente para que quien pinta pueda distinguir
+        // "no se pide" de "se nos olvidó". Detalle en la cabecera del fichero.
+        sleep_phases: false,
     };
     const warnings = [];
     if (!available.sleep_hours) {

@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # para importar coros_data
 
 import coros_data
+import dashboard_stats as stats   # análisis de sueño compartido con el dashboard
 
 # ---------------------------------------------------------------------------
 # 1. CONFIG — ajusta aquí si cambia algo de tu plan o tus datos
@@ -37,6 +38,9 @@ PLAN_START = date(2026, 9, 7)  # lunes = semana 1, día 1 del bloque 10K
 WEIGHT_KG = 73
 HR_REST = 50
 HR_MAX = 182
+# Objetivo de sueño del bloque de Hábitos (y de la línea del correo). Se puede
+# pisar sin tocar el código: SLEEP_TARGET_HOURS=8 como variable del workflow.
+SLEEP_TARGET_HOURS = float(os.environ.get("SLEEP_TARGET_HOURS") or stats.SLEEP_TARGET_HOURS)
 
 # Si True y Coros responde con una FC reposo, las zonas Karvonen del correo se
 # recalculan con ese valor en vez del HR_REST fijo de arriba. Útil si tu FC
@@ -169,7 +173,7 @@ def get_strava_summary(today):
 # 3. COROS (opcional) — lee coros_data.json si existe
 # ---------------------------------------------------------------------------
 
-def get_coros_summary():
+def get_coros_summary(today=None):
     """Resumen plano de Coros, o None si no hay archivo / está ilegible."""
     data = coros_data.load()
     if data is None:
@@ -178,6 +182,13 @@ def get_coros_summary():
     # Si el único dato es "stale" y todo lo demás vacío, tratamos como sin datos.
     if all(s.get(k) is None for k in ("resting_hr", "hrv", "sleep_hours", "load_ratio")):
         return None
+    # Análisis de sueño de la ventana larga: el mismo cálculo y el mismo objetivo
+    # que pinta el bloque de Hábitos del dashboard, para que el correo y el panel
+    # no puedan contradecirse. Sale con n == 0 si Coros no expone sleep_hours, y
+    # entonces _coros_html no pinta la línea (no se inventa una noche).
+    s["sleep_30d"] = stats.sleep_analysis(data, today or date.today(),
+                                          days=stats.SLEEP_WINDOW_DAYS,
+                                          target=SLEEP_TARGET_HOURS)
     return s
 
 
@@ -275,9 +286,23 @@ def _coros_html(coros):
     )
     date_txt = f" · día {coros['date']}" if coros.get("date") else ""
 
+    # Línea de sueño de la ventana larga (30 noches), compartida con el dashboard.
+    # Si Coros no expone sleep_hours, sleep_verdict devuelve None y no se pinta:
+    # mejor una línea menos que una media inventada.
+    a30 = coros.get("sleep_30d") or {}
+    frase_sueño = stats.sleep_verdict(a30)
+    sleep_line = ""
+    if frase_sueño:
+        sleep_line = (
+            f"<div style='font-size:13px;color:#555;margin-top:6px'>"
+            f"<b>Sueño ({a30.get('days')} días):</b> {frase_sueño} "
+            f"En objetivo el {a30.get('on_target_pct')}% de las noches.</div>"
+        )
+
     return (
         "<h3 style='margin-bottom:4px'>Recuperación (Coros)</h3>"
         f"<table style='border-collapse:collapse'><tr>{cells}</tr></table>"
+        f"{sleep_line}"
         f"<div style='font-size:11px;color:#888'>Fuente: Coros EvoLab vía @pinta365/coros (API no oficial){date_txt}"
         f"{' · ' + 'datos de ayer o más viejos' if coros.get('stale') else ''}</div>"
         f"{notes_html}"
@@ -340,7 +365,7 @@ def main():
         return
 
     strava = get_strava_summary(today)
-    coros = get_coros_summary()
+    coros = get_coros_summary(today)
     print(f"Coros: {'OK — ' + str(coros.get('date')) if coros else 'sin datos (el correo sale solo con Strava)'}")
 
     html = build_email_html(today, plan, strava, coros)

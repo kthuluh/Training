@@ -17,6 +17,8 @@ Cubren las tres cosas que pueden romperse en silencio:
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -160,6 +162,29 @@ def build_coros(today=TODAY, days=120):
     }
 
 
+def sleep_coros(hours_by_offset):
+    """coros_data.json mínimo con solo sueño: {días hacia atrás: horas}.
+
+    Para poder hacer las cuentas a mano en los tests del bloque de sueño sin
+    arrastrar los 120 días de `build_coros` (offset 0 = hoy).
+    """
+    return {
+        "days": [
+            {"date": (TODAY - timedelta(days=k)).isoformat(), "sleep_hours": v}
+            for k, v in sorted(hours_by_offset.items())
+        ]
+    }
+
+
+# 14 noches con las cuentas exactas: media 7,18 h, 7 por debajo del objetivo de
+# 7,5 h, deuda 6,5 h. Orden cronológico (de más antigua a más reciente) =
+# [7.0, 6.0, 8.0, 7.5, 7.0, 6.5, 8.5, 7.5, 6.0, 7.5, 7.0, 8.0, 6.5, 7.5].
+SUEÑO_14 = {
+    0: 7.5, 1: 6.5, 2: 8.0, 3: 7.0, 4: 7.5, 5: 6.0, 6: 7.5,
+    7: 8.5, 8: 6.5, 9: 7.0, 10: 7.5, 11: 8.0, 12: 6.0, 13: 7.0,
+}
+
+
 def new_html():
     return DASHBOARD.read_text(encoding="utf-8")
 
@@ -172,6 +197,7 @@ def run_all_sections(html, acts, coros, today=TODAY):
     html = ud.apply_entreno(html, acts, coros, today, notes)
     html = ud.apply_dieta(html, acts, coros, today, notes)
     html = ud.apply_habitos(html, acts, coros, today, notes)
+    html = ud.apply_sleep(html, coros, today, notes)
     html, mondays = ud.apply_historial(html, acts, coros, today, notes)
     html = ud.reconcile_weekly_lines(html, mondays, coros, ud.snapshot_weekly_manual(html), notes)
     html = ud.apply_recos(html, acts, coros, today, notes)
@@ -209,13 +235,15 @@ class TestMarkers(unittest.TestCase):
         "HRV_CARD", "HRV_CARD_SUB", "SLEEP_14D_AVG", "SLEEP_14D_SUB", "STEPS_CARD", "STEPS_CARD_SUB",
         "LOAD_CAPTION", "PLAN_STATUS", "ENTRENO_PB", "ENTRENO_LAST4W", "ENTRENO_VOL_NOTE",
         "ZONES_META", "ZONES_ROWS", "ENTRENO_STRENGTH_NOTE", "DIETA_ACTIVITY", "DIETA_CONTEXT",
-        "HABIT_01_BODY", "HABIT_02_BODY", "HABIT_03_BODY", "HABIT_05_BODY", "HIST_COVERAGE_NOTE",
+        "HABIT_01_BODY", "HABIT_02_BODY", "HABIT_03_BODY", "HABIT_05_BODY",
+        "SLEEP_TITLE", "SLEEP_CARDS", "SLEEP_VERDICT", "SLEEP_NOTES", "HIST_COVERAGE_NOTE",
         "TREND_VOL_CARD", "TREND_RHR_CARD", "TREND_SLEEP_CARD", "TREND_VERDICT", "RACES",
         "MONTHLY_VOL_YEAR", "MONTHLY_RHR_YEAR", "MONTHLY_RANGE_TITLE", "MONTHLY_CARDS",
         "WEEKLY_CARDS", "CURRENT_WEEK", "RECOS",
     ]
     JS_MARKERS = [
         "RHR30_LABELS", "RHR30_DATA", "LOAD14_LABELS", "LOAD14_SHORT", "LOAD14_LONG",
+        "SLEEP30_LABELS", "SLEEP30_DATA", "SLEEP30_TARGET",
         "CHARTVOL_LABELS", "CHARTVOL_DATA", "MONTHLY_YEAR", "MONTHLY_LABELS", "MONTHLY_VOL",
         "MONTHLY_RHR", "WEEKLY_MONDAYS", "WEEKLY_LABELS", "WEEKLY_VOL", "WEEKLY_SLEEP", "WEEKLY_RHR",
     ]
@@ -489,6 +517,214 @@ class TestHelpers(unittest.TestCase):
 # 5. Constantes compartidas y flujo completo (main)
 # ---------------------------------------------------------------------------
 
+class TestSueño(unittest.TestCase):
+    """Bloque 'Análisis del sueño' de Hábitos: cálculos, pintado y silencio.
+
+    La regla que se vigila aquí es la del resto del repo: con dato se pinta, y
+    sin dato **no se inventa nada** — el bloque se queda con el texto manual.
+    """
+
+    # 1 · cálculo puro con las cuentas hechas a mano
+    def test_analisis_con_datos(self):
+        a = stats.sleep_analysis(sleep_coros(SUEÑO_14), TODAY)
+        self.assertEqual(a["n"], 14)
+        self.assertEqual(a["mean"], 7.18)                       # 100,5 h / 14
+        self.assertEqual((a["lo"], a["hi"]), (6.0, 8.5))
+        self.assertEqual(a["below"], 7)                         # 7 noches < 7,5 h
+        self.assertEqual(a["on_target_pct"], 50)
+        self.assertEqual(a["debt_h"], 6.5)                      # suma de lo que falta
+        self.assertEqual(a["last7"], 7.14)                      # 7 noches más recientes
+        self.assertEqual(a["prev7"], 7.21)
+        self.assertEqual(a["delta7"], -0.07)
+        self.assertEqual(a["verdict"], "close")                 # a menos de 30 min del objetivo
+        # peor y mejor noche: a igualdad de horas gana la más antigua
+        self.assertEqual(a["worst"], {"date": TODAY - timedelta(days=12), "hours": 6.0})
+        self.assertEqual(a["best"], {"date": TODAY - timedelta(days=7), "hours": 8.5})
+
+    # 2 · sin dato: n == 0, nada inventado y veredicto mudo
+    def test_analisis_sin_datos_no_inventa(self):
+        for coros in (None, {}, {"days": []},
+                      {"days": [{"date": TODAY.isoformat(), "resting_hr": 46}]}):
+            with self.subTest(coros=coros):
+                a = stats.sleep_analysis(coros, TODAY)
+                self.assertEqual(a["n"], 0)
+                self.assertEqual(a["series"], [])
+                for campo in ("mean", "lo", "hi", "debt_h", "delta7", "worst", "best"):
+                    self.assertIsNone(a[campo], campo)
+                self.assertEqual(a["verdict"], "nodata")
+                self.assertIsNone(stats.sleep_verdict(a))
+
+    # 3 · un coros_data.json editado a mano no tumba el bloque
+    def test_valores_basura_se_ignoran_sin_reventar(self):
+        coros = {"days": [
+            {"date": "no-fecha", "sleep_hours": 8},                       # fecha ilegible
+            {"date": TODAY.isoformat(), "sleep_hours": "muchas"},         # texto
+            {"date": (TODAY - timedelta(days=1)).isoformat(), "sleep_hours": True},  # bool
+            {"date": (TODAY - timedelta(days=2)).isoformat(), "sleep_hours": None},
+            {"date": (TODAY - timedelta(days=3)).isoformat()},            # sin clave
+            {"date": (TODAY - timedelta(days=4)).isoformat(), "sleep_hours": 7.0},
+        ]}
+        a = stats.sleep_analysis(coros, TODAY)
+        self.assertEqual(a["n"], 1)
+        self.assertEqual(a["series"], [(TODAY - timedelta(days=4), 7.0)])
+        self.assertEqual(a["mean"], 7.0)
+        self.assertIsNone(a["delta7"])                     # hacen falta 14 noches
+        cards = ud.build_sleep_cards(a)
+        self.assertIn("Media (1 noche)", cards)            # plural, no "1 noches"
+        self.assertIn("14 noches con dato", cards)
+        # Con cero noches no se pinta ninguna tarjeta: nada de "None%" en el panel
+        self.assertIsNone(ud.build_sleep_cards(stats.sleep_analysis(None, TODAY)))
+        self.assertIsNone(ud.build_sleep_cards({"n": 0}))
+
+    # 4 · el objetivo manda: misma noche, veredicto distinto
+    def test_el_veredicto_cambia_con_el_objetivo(self):
+        coros = sleep_coros(SUEÑO_14)                      # media 7,18 h
+        self.assertEqual(stats.sleep_analysis(coros, TODAY, target=6.0)["verdict"], "ok")
+        self.assertEqual(stats.sleep_analysis(coros, TODAY, target=7.5)["verdict"], "close")
+        self.assertEqual(stats.sleep_analysis(coros, TODAY, target=9.0)["verdict"], "debt")
+        self.assertIn("por encima del objetivo",
+                      stats.sleep_verdict(stats.sleep_analysis(coros, TODAY, target=6.0)))
+        self.assertIn("deuda acumulada",
+                      stats.sleep_verdict(stats.sleep_analysis(coros, TODAY, target=9.0)))
+
+    # 5 · el objetivo se pisa por entorno, y el vacío no se cuela como 0
+    def test_el_objetivo_se_pisa_por_entorno(self):
+        """Los workflows pasan SLEEP_TARGET_HOURS desde `vars`: si la variable no
+        existe llega como cadena vacía, y ahí hay que caer en el valor por
+        defecto en vez de dejar un objetivo de 0 h (que daría "objetivo cumplido"
+        todas las noches). Se prueba en un proceso aparte porque la constante se
+        lee al importar el módulo."""
+        codigo = ("import sys; sys.path.insert(0, 'scripts');"
+                  "import update_dashboard as ud; print(ud.SLEEP_TARGET_HOURS)")
+        for valor, esperado in (("8", 8.0), ("", stats.SLEEP_TARGET_HOURS), (None, stats.SLEEP_TARGET_HOURS)):
+            with self.subTest(env=valor):
+                env = dict(os.environ)
+                if valor is None:
+                    env.pop("SLEEP_TARGET_HOURS", None)
+                else:
+                    env["SLEEP_TARGET_HOURS"] = valor
+                proc = subprocess.run([sys.executable, "-c", codigo], cwd=ROOT, env=env,
+                                      capture_output=True, text=True, timeout=120)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertEqual(float(proc.stdout.strip()), esperado)
+
+    # 6 · con dato, el bloque entero se rellena
+    def test_bloque_se_rellena_con_datos(self):
+        coros = build_coros()
+        html, notes = run_all_sections(new_html(), stats.normalize(build_activities()), coros)
+
+        # Media calculada aquí a mano, no vía stats: si el cálculo se rompe, falla.
+        noches = [d["sleep_hours"] for d in coros["days"][:30]]
+        self.assertEqual(len(noches), 30)
+        media = round(sum(noches) / len(noches), 2)
+
+        cards = marked(html, "SLEEP_CARDS")
+        self.assertIn('class="grid4"', cards)
+        self.assertIn("Media (30 noches)", cards)
+        self.assertIn(coros_data.fmt_hours(media), cards)
+
+        datos = ud.parse_js_array(marked_js(html, "SLEEP30_DATA"))
+        etiquetas = ud.parse_js_array(marked_js(html, "SLEEP30_LABELS"))
+        objetivo = ud.parse_js_array(marked_js(html, "SLEEP30_TARGET"))
+        self.assertEqual(len(datos), 30)
+        self.assertEqual(len(etiquetas), 30)
+        self.assertTrue(all(v is not None for v in datos))
+        self.assertEqual(objetivo, [ud.SLEEP_TARGET_HOURS] * 30)
+
+        self.assertIn("Sueño:", marked(html, "SLEEP_VERDICT"))
+        self.assertIn("fases", marked(html, "SLEEP_NOTES"))    # lo que Coros no da, dicho
+        self.assertTrue(any(n.startswith("sueño:") for n in notes))
+        self.assertTrue(any("gráfico de sueño" in n for n in notes))
+
+    # 7 · sin sleep_hours, ni una coma del bloque manual
+    def test_sin_sueño_se_conserva_el_bloque_manual(self):
+        antes = new_html()
+        coros = build_coros()
+        for d in coros["days"]:
+            d["sleep_hours"] = None
+        coros["latest_14"]["sleep_hours_avg"] = None
+        coros["available"]["sleep_hours"] = False
+
+        html, notes = run_all_sections(antes, stats.normalize(build_activities()), coros)
+
+        for marker in ("SLEEP_TITLE", "SLEEP_CARDS", "SLEEP_VERDICT", "SLEEP_NOTES"):
+            self.assertEqual(marked(html, marker), marked(antes, marker), marker)
+        for marker in ("SLEEP30_LABELS", "SLEEP30_DATA", "SLEEP30_TARGET"):
+            self.assertEqual(marked_js(html, marker), marked_js(antes, marker), marker)
+
+        aviso = [n for n in notes if "Coros no expone sleep_hours" in n]
+        self.assertEqual(len(aviso), 1, "debe quedar dicho por qué no se pintó")
+        self.assertIn("COROS_DEBUG=1", aviso[0])
+
+
+class TestFetcherCoros(unittest.TestCase):
+    """scripts/coros_fetch.mjs con COROS_FIXTURE: sin red y sin node_modules.
+
+    La ruta de fixture no llega a importar @pinta365/coros, así que esto corre
+    en el workflow de Tests con solo node instalado.
+    """
+
+    NODE = shutil.which("node")
+    FETCHER = ROOT / "scripts" / "coros_fetch.mjs"
+
+    def _escribe_fixture(self, ruta, dias=14, hoy=None):
+        # El fetcher usa el reloj real de la máquina, no el TODAY de los tests.
+        hoy = hoy or date.today()
+        day_list = []
+        for i in range(dias):
+            d = hoy - timedelta(days=i)
+            day_list.append({
+                "happenDay": int(d.strftime("%Y%m%d")),
+                "rhr": 46 + (i % 5),
+                "steps": 12000 + i * 250,
+                "avgSleepHrv": 44, "sleepHrvBase": 42,
+                "t7d": 250, "t28d": 1300, "trainingLoadRatio": 0.9,
+                "sleepDuration": int((6.0 + 0.1 * i) * 3600),   # segundos → horas
+            })
+        ruta.write_text(json.dumps({"dayList": day_list}), encoding="utf-8")
+
+    @unittest.skipUnless(NODE, "node no está instalado")
+    def test_el_fixture_rellena_sleep_hours_y_deja_las_fases_fuera(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            fixture, out = tmp / "analyse.json", tmp / "coros_data.json"
+            self._escribe_fixture(fixture)
+            env = dict(
+                os.environ,
+                COROS_EMAIL="fixture@example.com",   # solo para pasar el guard
+                COROS_PASSWORD="no-se-usa",          # con fixture no hay login
+                COROS_FIXTURE=str(fixture),
+                COROS_OUT=str(out),
+                COROS_DAYS="14",
+            )
+            proc = subprocess.run([self.NODE, str(self.FETCHER)], env=env, cwd=ROOT,
+                                  capture_output=True, text=True, timeout=120)
+            self.assertEqual(proc.returncode, 0, proc.stderr or proc.stdout)
+            data = json.loads(out.read_text(encoding="utf-8"))
+
+        # El sueño entra por SLEEP_KEYS (sleepDuration, en segundos)
+        self.assertTrue(data["available"]["sleep_hours"])
+        self.assertEqual(data["days"][-1]["date"], date.today().isoformat())   # el más reciente al final
+        self.assertAlmostEqual(data["days"][-1]["sleep_hours"], 6.0, places=2)
+        self.assertAlmostEqual(data["latest"]["sleep_hours"], 6.0, places=2)
+        # Si hay sueño, no debe salir el warning de "sleep_hours no disponible"
+        self.assertFalse([w for w in data["warnings"] if "sleep_hours" in w])
+
+        # Las fases: declaradas fuera a propósito, no simplemente ausentes
+        self.assertFalse(data["available"]["sleep_phases"])
+        for d in data["days"]:
+            self.assertFalse([k for k in d if re.search(r"phase|deep|rem|light", k, re.I)],
+                             "ningún día debe traer fases")
+
+    def test_el_fetcher_documenta_por_qué_no_hay_fases(self):
+        """El contrato está escrito en el fichero, no solo en la cabeza de nadie."""
+        src = self.FETCHER.read_text(encoding="utf-8")
+        self.assertIn("sleep_phases: false", src)
+        for trozo in ("API móvil", "APK", "desloguea", "SLEEP_KEYS", "COROS_DEBUG"):
+            with self.subTest(trozo=trozo):
+                self.assertIn(trozo, src)
+
+
 class TestConstantesCompartidas(unittest.TestCase):
     """El plan y las zonas tienen que decir lo mismo en el correo y el dashboard."""
 
@@ -499,7 +735,7 @@ class TestConstantesCompartidas(unittest.TestCase):
         return m.group(1).strip().split("#")[0].strip()
 
     def test_plan_y_zonas(self):
-        for name in ("PLAN_START", "HR_REST", "HR_MAX"):
+        for name in ("PLAN_START", "HR_REST", "HR_MAX", "SLEEP_TARGET_HOURS"):
             with self.subTest(name=name):
                 self.assertEqual(self._const("scripts/daily_brief.py", name),
                                  self._const("scripts/update_dashboard.py", name))

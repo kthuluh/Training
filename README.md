@@ -167,13 +167,31 @@ campos de los que la librería tipa, así que busca claves sueltas
 (`sleepDuration`, `totalSleep`, `sleepTime`…) y, si aparecen, las convierte a
 horas. Si en tu cuenta no vienen, `sleep_hours` queda `null` y:
 
-* el correo muestra `—` en la casilla de Sueño,
-* la tarjeta de sueño y la línea "Sueño" del gráfico semanal se quedan como
-  estén (manuales), sin que el bot las puegue.
+* el correo muestra `—` en la casilla de Sueño y **no pinta** la línea de
+  análisis del sueño,
+* la tarjeta de sueño, la línea "Sueño" del gráfico semanal y el bloque
+  *Análisis del sueño* de Hábitos se quedan como estén (manuales), sin que el
+  bot las toque.
 
 Para saber si tu cuenta los tiene: `COROS_DEBUG=1 node ... coros_fetch.mjs` y
-mira la lista de claves. Si ves una de sueño con otro nombre, añádela a
+mira la lista de claves. Con `COROS_DEBUG=1` el script además imprime qué claves
+tienen pinta de sueño, cuánto saca `sleepHoursOf()` del primer día y un recordatorio
+de que las fases no se piden. Si ves una de sueño con otro nombre, añádela a
 `SLEEP_KEYS` arriba de todo en `scripts/coros_fetch.mjs` y ya se auto-refresca.
+
+**Fases del sueño (ligero / profundo / REM): no, y a propósito.** Solo salen por
+la API **móvil** de Coros, que se autentica con claves sacadas del APK de la app:
+
+1. esas claves no son públicas y cambian con cada versión, así que un cron de
+   GitHub las rompería en cuanto Coros actualizara la app;
+2. y lo que manda: el login móvil **invalida la sesión del teléfono**, o sea que
+   ejecutarlo cada madrugada desloguearía el reloj del móvil.
+
+Por eso no se intenta siquiera. El contrato lo deja explícito en vez de callarse:
+`coros_data.json` sale con `"available": { …, "sleep_phases": false }` y ningún
+día trae fases, de modo que quien pinta puede distinguir "no se pide" de "se nos
+olvidó". El bloque de Hábitos lo dice en sus notas, y la tarjeta "Sueño profundo
+medio" del Resumen general sigue siendo manual.
 
 ### 4.5 Formato de `coros_data.json` (el contrato entre el .mjs y el .py)
 
@@ -194,7 +212,8 @@ mira la lista de claves. Si ves una de sueño con otro nombre, añádela a
   "weeks": [ { "week_start": "2026-09-14", "resting_hr": 50, "sleep_hours": null,
                "hrv": 43, "load_ratio": 0.9, "distance_km": 12.4, "n_days": 5 }, ... ],
   "available": { "resting_hr": true, "hrv": true, "sleep_hours": false,
-                 "steps": true, "load_ratio": true },
+                 "steps": true, "load_ratio": true,
+                 "sleep_phases": false },   // siempre false: ver 4.4 (API móvil)
   "warnings": [ "..." ],
   "resting_hr": 49, "sleep_hours": null, "hrv": 44   // claves planas legacy
 }
@@ -244,6 +263,7 @@ Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 | Entrenamiento | `ENTRENO_PB`, `ENTRENO_LAST4W`, `ENTRENO_VOL_NOTE`, `ENTRENO_STRENGTH_NOTE`, `CHARTVOL_LABELS`, `CHARTVOL_DATA`, `ZONES_META`, `ZONES_ROWS` | Strava | mejores marcas 10K/21K de los últimos 12 meses, resumen de las últimas 4 semanas, gráfico de volumen (8 semanas), tabla de zonas Karvonen y aviso de fuerza |
 | Dieta | `DIETA_ACTIVITY`, `DIETA_CONTEXT` | Coros + Strava | pasos reales de Coros y contexto de la semana (km, sesiones, ratio de carga) |
 | Hábitos | `HABIT_01_BODY`, `HABIT_02_BODY`, `HABIT_03_BODY`, `HABIT_05_BODY` | Strava + Coros | última sesión de fuerza, noches más cortas, salidas que se pasan del techo de Z2 y rampa de volumen |
+| Hábitos | `SLEEP_TITLE`, `SLEEP_CARDS`, `SLEEP_VERDICT`, `SLEEP_NOTES`, `SLEEP30_LABELS`, `SLEEP30_DATA`, `SLEEP30_TARGET` | Coros | bloque *Análisis del sueño* al final de la pestaña: 4 tarjetas (media, noches en objetivo, deuda y tendencia 7 vs 7), gráfico de las últimas 30 noches contra el objetivo, veredicto y notas con lo que Coros no da |
 | Historial | `TREND_VOL_CARD`, `TREND_RHR_CARD`, `TREND_SLEEP_CARD`, `TREND_VERDICT` | Strava + Coros | las 4 últimas semanas completas frente a las 4 anteriores |
 | Historial | `RACES` | Strava | carreras del año (`workout_type = Race`) |
 | Historial | `MONTHLY_LABELS`, `MONTHLY_VOL`, `MONTHLY_RHR`, `MONTHLY_YEAR`, `MONTHLY_VOL_YEAR`, `MONTHLY_RHR_YEAR`, `MONTHLY_RANGE_TITLE`, `MONTHLY_CARDS` | Strava + Coros | gráficos mensuales (volumen y FC reposo) y tarjetas de mes |
@@ -267,7 +287,11 @@ Tres reglas que sigue el script (y que valen para todas las pestañas):
 
 * Peso, edad y altura (no hay conector a una báscula; Coros sigue con 70 kg).
 * Las calorías y macros de la pestaña Dieta, que dependen del peso.
-* Sueño profundo: la librería de Coros no expone fases de sueño.
+* Sueño profundo y fases (ligero / REM): exigen la API **móvil** de Coros, que
+  pide claves sacadas del APK y desloguea el reloj del teléfono. El porqué
+  completo, en 4.4; el JSON lo declara con `"sleep_phases": false`.
+* El **objetivo** de sueño (7,5 h por defecto): es tuyo, no un dato que se
+  descargue. Se cambia con `SLEEP_TARGET_HOURS` sin tocar el código.
 * Las tablas del plan (bloques 10K/21K) y las 3 recomendaciones fijas.
 
 ### 7.2 Probarlo a mano
@@ -287,6 +311,7 @@ Variables que entiende para probar sin tocar el dashboard real:
 | `COROS_DATA_PATH` | usar otro `coros_data.json` (por ejemplo uno de prueba) |
 | `HR_REST_FROM_COROS` | `1` → recalcula las zonas Karvonen con tu FC reposo real de Coros (en el correo el equivalente es `HR_REST_FROM_COROS` en `daily_brief.py`) |
 | `COROS_DEBUG` | `1` → imprime las claves reales que devuelve Coros (útil para ver si hay sueño o pasos) |
+| `SLEEP_TARGET_HOURS` | objetivo de sueño del bloque de Hábitos y de la línea del correo (`7.5` por defecto, definido en `scripts/dashboard_stats.py`). En GitHub va como *variable* del repo —Settings → Secrets and variables → Actions → Variables—, no como secret; si llega vacía se usa el valor por defecto |
 
 ### 7.3 Tests
 
@@ -299,9 +324,18 @@ python -m unittest discover -s tests -t .
 
 Cubren que todos los marcadores existan (y una sola vez) en el HTML, que con
 datos los números salgan bien, que **sin datos no se toque nada**, que dos
-pasadas seguidas den el mismo HTML y que `PLAN_START`/`HR_REST`/`HR_MAX` sigan
-cuadrando con `scripts/daily_brief.py`. El workflow **Tests** los corre en cada
-push y en cada PR.
+pasadas seguidas den el mismo HTML y que `PLAN_START`/`HR_REST`/`HR_MAX`/
+`SLEEP_TARGET_HOURS` sigan cuadrando con `scripts/daily_brief.py`.
+
+También cubren el bloque de sueño (media, deuda, tendencia 7 vs 7 y los tres
+veredictos según el objetivo), que con `sleep_hours` a `null` el bloque manual no
+se mueva ni una coma, y el propio `scripts/coros_fetch.mjs`: se ejecuta con
+`COROS_FIXTURE` y comprueba que `sleepDuration` acaba en `sleep_hours` y que
+`sleep_phases` sale `false`. Ese último necesita `node` en el PATH (el workflow
+lo instala); **no** necesita `npm install`, porque la ruta de fixture no llega a
+importar `@pinta365/coros`. Sin `node`, ese test se salta en vez de fallar.
+
+El workflow **Tests** los corre en cada push y en cada PR.
 
 ### 7.4 Link fijo del dashboard
 

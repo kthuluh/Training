@@ -482,6 +482,119 @@ def high_step_days(coros, today, days=90, n=3, min_steps=None):
 
 
 # ---------------------------------------------------------------------------
+# Análisis del sueño (bloque de Hábitos + línea del correo)
+#
+# Lo que hay y lo que no: la API **web** de Coros (la que usa coros_fetch.mjs a
+# través de @pinta365/coros) no tiene endpoint de sueño. El script busca claves
+# sueltas en la respuesta del día (SLEEP_KEYS) y, si tu cuenta las trae,
+# `sleep_hours` se rellena solo. Las **fases** (ligero/profundo/REM) quedan
+# fuera a propósito: exigen la API móvil con claves sacadas del APK y la llamada
+# desloguea el reloj del móvil — no es algo que un cron de GitHub deba hacer.
+#
+# De ahí la regla de este bloque: si `sleep_hours` no viene, `n == 0`, todo va a
+# None y quien pinta **conserva el valor manual**. Nunca se inventa una noche.
+# ---------------------------------------------------------------------------
+
+SLEEP_TARGET_HOURS = 7.5   # objetivo de sueño; se pisa con la env SLEEP_TARGET_HOURS
+SLEEP_WINDOW_DAYS = 30     # noches que mira el bloque de Hábitos
+
+
+def sleep_series(coros, today, days=SLEEP_WINDOW_DAYS):
+    """[(date, horas)] de las últimas `days` noches con dato, en orden cronológico.
+
+    La ventana es de exactamente `days` noches (hoy incluida), no `days + 1`:
+    así las tarjetas, el veredicto y los puntos del gráfico cuentan lo mismo.
+    Solo entran los días con `sleep_hours` numérico — si Coros no lo expone la
+    lista sale vacía, y no con ceros, que falsearían cualquier media.
+    """
+    desde = today - timedelta(days=days - 1)
+    out = []
+    for d in (coros or {}).get("days", []):
+        try:
+            day = date.fromisoformat(str(d.get("date"))[:10])
+        except (ValueError, TypeError):
+            continue
+        if not desde <= day <= today:
+            continue
+        h = as_number(d.get("sleep_hours"))
+        if h is not None:
+            out.append((day, h))
+    out.sort(key=lambda r: r[0])
+    return out
+
+
+def sleep_analysis(coros, today, days=SLEEP_WINDOW_DAYS, target=SLEEP_TARGET_HOURS):
+    """Todo lo que necesita el bloque de sueño: media, rango, deuda, tendencia y veredicto.
+
+    Devuelve siempre el mismo dict. Con `n == 0` (Coros no expone el sueño) los
+    campos van a None y `verdict` es `"nodata"`: el dashboard deja el texto
+    manual y el correo no pinta la línea.
+    """
+    series = sleep_series(coros, today, days)
+    hours = [h for _, h in series]
+    out = {
+        "n": len(hours), "days": days, "target": target,
+        "mean": None, "lo": None, "hi": None,
+        "below": 0, "on_target_pct": None, "debt_h": None,
+        "last7": None, "prev7": None, "delta7": None,
+        "worst": None, "best": None,
+        "series": series, "verdict": "nodata",
+    }
+    if not hours:
+        return out
+
+    out["mean"] = round(sum(hours) / len(hours), 2)
+    out["lo"], out["hi"] = min(hours), max(hours)
+    out["below"] = sum(1 for h in hours if h < target)
+    out["on_target_pct"] = round(100 * (len(hours) - out["below"]) / len(hours))
+    out["debt_h"] = round(sum(max(0.0, target - h) for h in hours), 1)
+
+    worst_i = min(range(len(hours)), key=lambda i: hours[i])
+    best_i = max(range(len(hours)), key=lambda i: hours[i])
+    out["worst"] = {"date": series[worst_i][0], "hours": hours[worst_i]}
+    out["best"] = {"date": series[best_i][0], "hours": hours[best_i]}
+
+    # Tendencia 7 vs 7 solo si hay dos semanas enteras con dato: con menos,
+    # comparar sería ruido.
+    if len(hours) >= 14:
+        out["last7"] = round(sum(hours[-7:]) / 7, 2)
+        out["prev7"] = round(sum(hours[-14:-7]) / 7, 2)
+        out["delta7"] = round(out["last7"] - out["prev7"], 2)
+
+    if out["mean"] >= target:
+        out["verdict"] = "ok"
+    elif out["mean"] >= target - 0.5:
+        out["verdict"] = "close"
+    else:
+        out["verdict"] = "debt"
+    return out
+
+
+def sleep_verdict(a):
+    """Frase del veredicto, compartida por el dashboard y el correo.
+
+    Devuelve None con `"nodata"`: así los dos sitios callan a la vez en lugar de
+    decir cosas distintas sobre la misma noche.
+    """
+    if not a or a.get("verdict") == "nodata":
+        return None
+    mean, target = a["mean"], a["target"]
+    noches = "noche" if a["n"] == 1 else "noches"
+    head = f"{fmt_minutes(mean)} de media en {a['n']} {noches}"
+    if a["verdict"] == "ok":
+        txt = f"{head} — por encima del objetivo de {fmt_minutes(target)}."
+    elif a["verdict"] == "close":
+        txt = f"{head} — a {fmt_minutes(target - mean)} del objetivo de {fmt_minutes(target)}."
+    else:
+        txt = (f"{head} — {fmt_minutes(target - mean)} por noche por debajo del objetivo de "
+               f"{fmt_minutes(target)}: {fmt_minutes(a['debt_h'])} de deuda acumulada.")
+    if a["delta7"] is not None:
+        direccion = "sube" if a["delta7"] > 0 else ("baja" if a["delta7"] < 0 else "se mantiene")
+        txt += f" La última semana {direccion} {fmt_minutes(abs(a['delta7']))} respecto a la anterior."
+    return txt
+
+
+# ---------------------------------------------------------------------------
 # zonas de FC (Karvonen) — mismo criterio que la tabla del dashboard
 # ---------------------------------------------------------------------------
 
