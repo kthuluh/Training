@@ -202,9 +202,9 @@
 
   <!-- ENTRENAMIENTO -->
   <section class="panel" id="entreno">
-    <div class="flag info"><!--AUTO:PLAN_STATUS--><b>Plan:</b> 18 semanas desde el 7 sep 2026 — bloque 10K (semanas 1-8) y después bloque 21K (semanas 9-18).<!--/AUTO:PLAN_STATUS--></div>
+    <div class="flag info"><!--AUTO:PLAN_STATUS--><b>Plan:</b> hoy viernes 18 de septiembre de 2026 — vas por la <b>semana 2 de 18</b> (bloque 10K). Arrancó el 7 de septiembre de 2026.<!--/AUTO:PLAN_STATUS--></div>
 
-    <div class="flag"><b>Punto de partida real:</b> <!--AUTO:ENTRENO_PB-->tu mejor 10K es 47:00 (4:42/km) y tu mejor 21K es 1:46:00 (5:02/km)<!--/AUTO:ENTRENO_PB--> — el sistema de zonas de Strava tenía cargado un 10K de referencia de 50:00, desactualizado respecto a tu marca real. <!--AUTO:ENTRENO_LAST4W-->Últimas 4 semanas registradas: ~4–5 salidas/semana, tirada larga hasta 13 km con desnivel (hasta 356 m).<!--/AUTO:ENTRENO_LAST4W--> <!--AUTO:ENTRENO_VOL_NOTE-->El volumen semanal ha subido rápido: de ~8 km (semana del 4/8) a ~38 km (semana del 25/8) en apenas 3 semanas.<!--/AUTO:ENTRENO_VOL_NOTE--> Es un salto grande — el plan de abajo lo estabiliza antes de seguir subiendo.</div>
+    <div class="flag"><b>Punto de partida real:</b> <!--AUTO:ENTRENO_PB-->tu mejor 10K es <b>46:40</b> (4:40/km) y tu mejor 21K es <b>1:56:00</b> (5:30/km) (de los últimos 12 meses en Strava)<!--/AUTO:ENTRENO_PB--> — el sistema de zonas de Strava tenía cargado un 10K de referencia de 50:00, desactualizado respecto a tu marca real. <!--AUTO:ENTRENO_LAST4W-->Últimas 4 semanas registradas: ~3,2 salidas/semana, tirada larga hasta 13,0 km con desnivel (hasta 356 m).<!--/AUTO:ENTRENO_LAST4W--> <!--AUTO:ENTRENO_VOL_NOTE-->El volumen semanal ha subido rápido: de 0,0 km (semana del 27 jul) a 47,1 km (semana del 17 ago) en 3 semanas.<!--/AUTO:ENTRENO_VOL_NOTE--> Es un salto grande — el plan de abajo lo estabiliza antes de seguir subiendo.</div>
 
     <div class="section-title">Volumen semanal reciente (carrera, km)</div>
     <div class="card"><div class="chart-wrap"><canvas id="chartVol"></canvas></div></div>
@@ -213,7 +213,8 @@
     <div class="card">
       <table>
         <tr><th>Zona</th><th>bpm</th><th>Uso</th></tr>
-        <!--AUTO:ZONES_ROWS--><tr><td><span class="zone-chip" style="background:#8FA98F"></span>Z1 — Recuperación</td><td class="num">116–129</td><td>Rodajes de recuperación, calentamiento</td></tr>
+        <!--AUTO:ZONES_ROWS-->
+        <tr><td><span class="zone-chip" style="background:#8FA98F"></span>Z1 — Recuperación</td><td class="num">116–129</td><td>Rodajes de recuperación, calentamiento</td></tr>
         <tr><td><span class="zone-chip" style="background:#3F5C46"></span>Z2 — Aeróbico/fácil</td><td class="num">130–142</td><td>Base, tiradas largas, la mayoría del volumen</td></tr>
         <tr><td><span class="zone-chip" style="background:#35586B"></span>Z3 — Tempo</td><td class="num">143–156</td><td>Ritmo controlado, umbral aeróbico</td></tr>
         <tr><td><span class="zone-chip" style="background:#A9552E"></span>Z4 — Umbral</td><td class="num">157–169</td><td>Series largas, ritmo de 21K exigido</td></tr>
@@ -251,14 +252,14 @@
     </div>
 
     <div class="section-title">Fuerza (recomendado, no incluido en el total de km)</div>
-    <div class="card sub"><!--AUTO:ENTRENO_STRENGTH_NOTE-->Hiciste sesiones de fuerza (cuádriceps/isquios) en junio–julio pero no aparecen desde el 20 de julio. Con el volumen subiendo, 2 sesiones cortas de 25–30 min/semana (sentadilla, zancada, puente de glúteo, core) bajan bastante el riesgo de lesión — mira la pestaña de Hábitos.<!--/AUTO:ENTRENO_STRENGTH_NOTE--></div>
+    <div class="card sub"><!--AUTO:ENTRENO_STRENGTH_NOTE-->Fuerza en marcha: 2 sesiones en los últimos 28 días (última el 15 sep). Mantén las 2 sesiones cortas de 25–30 min/semana.<!--/AUTO:ENTRENO_STRENGTH_NOTE--></div>
   </section>
 
   <!-- DIETA -->
   <section class="panel" id="dieta">
     <div class="flag info">Estimado con tu peso (73 kg), altura (170 cm) y edad (46), y tu nivel de actividad real <!--AUTO:DIETA_ACTIVITY-->(carreras + ~15.900 pasos/día de media)<!--/AUTO:DIETA_ACTIVITY-->. Son puntos de partida, no cifras clínicas — ajusta según cómo te sientas y el peso real semana a semana.</div>
 
-    <div class="flag info" style="margin-top:10px;"><!--AUTO:DIETA_CONTEXT--><b>Contexto real (auto):</b> pendiente de datos de Strava y Coros.<!--/AUTO:DIETA_CONTEXT--></div>
+    <div class="flag info" style="margin-top:10px;"><!--AUTO:DIETA_CONTEXT--><b>Contexto real (auto):</b> esta semana: 15,8 km en 2 salidas · media de las 4 semanas anteriores: 29,1 km/semana · ratio de carga 0.92 (Coros). Ajusta las calorías de los días de calidad/tirada larga según lo que toque cada día.<!--/AUTO:DIETA_CONTEXT--></div>
 
     <div class="section-title">Calorías según tipo de día</div>
     <div class="grid3">
@@ -297,7 +298,7 @@
       <div class="habit-num">01</div>
       <div class="habit-body">
         <h3>Recuperar la fuerza 2x/semana</h3>
-        <p><!--AUTO:HABIT_01_BODY-->La dejaste el 20 de julio. Con el volumen de carrera subiendo, es lo que más baja el riesgo de lesión de aquí al 21K. 25–30 min: sentadilla, zancada, puente de glúteo, plancha/core, gemelo.<!--/AUTO:HABIT_01_BODY--></p>
+        <p><!--AUTO:HABIT_01_BODY-->Última sesión registrada: 15 sep (hace 3 días). En los últimos 28 días: 2 sesiones. Con el volumen de carrera subiendo, es lo que más baja el riesgo de lesión de aquí al 21K. 25–30 min: sentadilla, zancada, puente de glúteo, plancha/core, gemelo.<!--/AUTO:HABIT_01_BODY--></p>
       </div>
     </div>
     <div class="habit-row">
@@ -311,7 +312,7 @@
       <div class="habit-num">03</div>
       <div class="habit-body">
         <h3>Correr Z2 realmente en Z2</h3>
-        <p><!--AUTO:HABIT_03_BODY-->En varias salidas ("Intentant HR tranquil", "Sortida tranquila intentant zona baixa") se nota que has estado intentando bajar el ritmo sin conseguirlo del todo (esfuerzo relativo disparado en la del 10/8). Usa la FC como límite duro, no la sensación — si te pasas de Z2, camina un poco.<!--/AUTO:HABIT_03_BODY--></p>
+        <p><!--AUTO:HABIT_03_BODY-->De tus últimas 12 salidas (12 con pulso), 9 acabaron con FC media por encima del techo de Z2 (142 bpm). La más alta: 153 bpm de media el 13/9 (Evening Run). Usa la FC como límite duro, no la sensación — si te pasas de Z2, camina un poco.<!--/AUTO:HABIT_03_BODY--></p>
       </div>
     </div>
     <div class="habit-row">
@@ -325,26 +326,26 @@
       <div class="habit-num">05</div>
       <div class="habit-body">
         <h3>Subir el volumen semanal con calma</h3>
-        <p><!--AUTO:HABIT_05_BODY-->Pasaste de ~8 km a ~38 km/semana en 3 semanas. A partir de aquí, no subas más de un 10% de una semana a otra salvo semanas de descarga.<!--/AUTO:HABIT_05_BODY--></p>
+        <p><!--AUTO:HABIT_05_BODY-->Pasaste de 0,0 km (semana del 27 jul) a 47,1 km (semana del 17 ago) en 3 semanas. A partir de aquí, no subas más de un 10% de una semana a otra salvo semanas de descarga.<!--/AUTO:HABIT_05_BODY--></p>
       </div>
     </div>
   </section>
 
   <!-- HISTORIAL -->
   <section class="panel" id="historial">
-    <div class="flag info"><!--AUTO:HIST_COVERAGE_NOTE--><b>Cobertura de datos:</b> volumen de carrera y FC reposo cubren todo 2026 (enero–septiembre) desde Strava y Coros. El detalle de sueño día a día solo está disponible de forma fiable desde principios de junio — por eso enero–mayo se resume por mes, y junio–septiembre tiene tarjeta semanal completa. Hoy, lunes 7 de septiembre, arrancó oficialmente la Semana 1 del bloque de 10K.<!--/AUTO:HIST_COVERAGE_NOTE--></div>
+    <div class="flag info"><!--AUTO:HIST_COVERAGE_NOTE--><b>Cobertura de datos:</b> actividades de Strava del 18 sep–17 sep; Coros hasta el 17 sep (FC reposo, HRV, carga). El detalle semana a semana cubre las últimas 12 semanas completas. Hoy es viernes 18 de septiembre y vas por la semana 2 de 18 del plan (10K).<!--/AUTO:HIST_COVERAGE_NOTE--></div>
 
     <div class="section-title">¿Mejorando o empeorando? — últimas 4 semanas completas vs. las 4 anteriores</div>
     <div class="grid3">
       <!--AUTO:TREND_VOL_CARD--><div class="card">
         <h3>Volumen de carrera</h3>
-        <div class="big">32,0 <span style="font-size:16px;">km/sem</span> <span class="delta up">▲ +228%</span></div>
-        <div class="sub">Antes 9,8 km/sem (6 jul–9 ago, con parón vacacional) → ahora 32,0 km/sem (10 ago–6 sep). Subida fuerte y clara, en línea con el plan.</div>
+        <div class="big">29,1 <span style="font-size:16px;">km/sem</span> <span class="delta up">▲194%</span></div>
+        <div class="sub">Media de las últimas 4 semanas (17 ago–13 sep) frente a las 4 anteriores (20 jul–16 ago, 9,9 km/sem).</div>
       </div><!--/AUTO:TREND_VOL_CARD-->
       <!--AUTO:TREND_RHR_CARD--><div class="card">
         <h3>FC reposo</h3>
-        <div class="big">52 <span style="font-size:16px;">bpm</span> <span class="delta down">▲ +2 bpm</span></div>
-        <div class="sub">Subió de 50 a 52 bpm de media. Es normal al aumentar tanto el volumen de golpe, pero es la señal a vigilar — no debería seguir subiendo.</div>
+        <div class="big">46 <span style="font-size:16px;">bpm</span> <span class="delta up">▼1</span></div>
+        <div class="sub">Media de 28 días con dato de Coros en las últimas 4 semanas (17 ago–13 sep) → -1,4 bpm respecto a las 4 anteriores (47,2 bpm, 28 días con dato).</div>
       </div><!--/AUTO:TREND_RHR_CARD-->
       <!--AUTO:TREND_SLEEP_CARD--><div class="card">
         <h3>Sueño</h3>
@@ -352,7 +353,7 @@
         <div class="sub">Bajó de 7h13m a 6h50m de media. Coincide con la subida de volumen — la semana del 10–16 ago fue especialmente floja (5h45m).</div>
       </div><!--/AUTO:TREND_SLEEP_CARD-->
     </div>
-    <div class="flag" style="margin-top:14px;"><!--AUTO:TREND_VERDICT-->En conjunto: estás progresando en lo que controlas directamente (volumen, cumplimiento del plan), pero el cuerpo lo está notando (FC reposo y sueño ligeramente peor). No es alarmante, pero es el momento de reforzar el hábito de dormir más en días de carga alta (pestaña Hábitos) antes de seguir subiendo volumen.<!--/AUTO:TREND_VERDICT--></div>
+    <div class="flag" style="margin-top:14px;"><!--AUTO:TREND_VERDICT-->En conjunto: el volumen sube un 194% respecto a las 4 semanas anteriores. Toleras bien la carga: hay margen para seguir subiendo volumen con control.<!--/AUTO:TREND_VERDICT--></div>
 
     <div class="section-title">Carreras del año</div>
     <div class="card">
@@ -368,13 +369,17 @@
     <div class="section-title">FC reposo media mensual — <!--AUTO:MONTHLY_RHR_YEAR-->2026<!--/AUTO:MONTHLY_RHR_YEAR--></div>
     <div class="card"><div class="chart-wrap"><canvas id="chartMonthlyRHR"></canvas></div></div>
 
-    <div class="section-title"><!--AUTO:MONTHLY_RANGE_TITLE-->Resumen mensual — enero a mayo<!--/AUTO:MONTHLY_RANGE_TITLE--></div>
+    <div class="section-title"><!--AUTO:MONTHLY_RANGE_TITLE-->Resumen mensual — enero a septiembre<!--/AUTO:MONTHLY_RANGE_TITLE--></div>
     <div class="mgrid">
-      <!--AUTO:MONTHLY_CARDS--><div class="mcard"><h4>Enero</h4><div class="v">93,9 km</div><div class="m2">8 salidas · FC reposo 52 bpm · Media Granollers</div></div>
-      <div class="mcard"><h4>Febrero</h4><div class="v">111,0 km</div><div class="m2">6 salidas · FC reposo 52 bpm · Maratón Sevilla</div></div>
-      <div class="mcard"><h4>Marzo</h4><div class="v">44,1 km</div><div class="m2">7 salidas · FC reposo 52 bpm · recuperación post-maratón</div></div>
-      <div class="mcard"><h4>Abril</h4><div class="v">29,7 km</div><div class="m2">4 salidas · FC reposo 53 bpm · mes más flojo del año</div></div>
-      <div class="mcard"><h4>Mayo</h4><div class="v">92,4 km</div><div class="m2">11 salidas · FC reposo 50 bpm · 2 carreras de 10K</div></div><!--/AUTO:MONTHLY_CARDS-->
+      <!--AUTO:MONTHLY_CARDS--><div class="mcard"><h4>Enero</h4><div class="v">93,9 km</div><div class="m2">8 salidas</div></div>
+      <div class="mcard"><h4>Febrero</h4><div class="v">110,9 km</div><div class="m2">6 salidas</div></div>
+      <div class="mcard"><h4>Marzo</h4><div class="v">44,0 km</div><div class="m2">7 salidas</div></div>
+      <div class="mcard"><h4>Abril</h4><div class="v">29,6 km</div><div class="m2">4 salidas</div></div>
+      <div class="mcard"><h4>Mayo</h4><div class="v">92,4 km</div><div class="m2">11 salidas</div></div>
+      <div class="mcard"><h4>Junio</h4><div class="v">61,6 km</div><div class="m2">9 salidas · 2 de fuerza · FC reposo 46 bpm</div></div>
+      <div class="mcard"><h4>Julio</h4><div class="v">67,3 km</div><div class="m2">8 salidas · 1 de fuerza · FC reposo 46 bpm</div></div>
+      <div class="mcard"><h4>Agosto</h4><div class="v">111,4 km</div><div class="m2">13 salidas · FC reposo 47 bpm</div></div>
+      <div class="mcard"><h4>Septiembre</h4><div class="v">47,3 km</div><div class="m2">6 salidas · 2 de fuerza · FC reposo 46 bpm</div></div><!--/AUTO:MONTHLY_CARDS-->
     </div>
 
     <div class="section-title">Tendencia semanal — junio a septiembre (volumen, sueño, FC reposo)</div>
@@ -382,83 +387,77 @@
 
     <div class="section-title">Semana a semana — detalle completo</div>
     <div class="wgrid">
-      <!--AUTO:WEEKLY_CARDS--><div class="wcard"><div class="wk-lbl">8–14 jun</div>
-        <div class="metric"><span>Carrera</span><span class="v">19,6 km</span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">3</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">7h 09m</span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">49 bpm</span></div>
-      </div>
-      <div class="wcard"><div class="wk-lbl">15–21 jun</div>
-        <div class="metric"><span>Carrera</span><span class="v">16,4 km <span class="delta down">▼3,2</span></span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">2</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">7h 36m <span class="delta up">▲27m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">50 bpm <span class="delta down">▲1</span></span></div>
-      </div>
-      <div class="wcard"><div class="wk-lbl">22–28 jun</div>
-        <div class="metric"><span>Carrera</span><span class="v">7,3 km <span class="delta down">▼9,1</span></span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">1 + 2 fuerza</span></div>
+      <!--AUTO:WEEKLY_CARDS--><div class="wcard"><div class="wk-lbl">22-28 jun</div>
+        <div class="metric"><span>Carrera</span><span class="v">12,5 km</span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">2 + 2 fuerza</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 09m <span class="delta down">▼27m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">50 bpm <span class="delta flat">＝</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">29 jun–5 jul</div>
-        <div class="metric"><span>Carrera</span><span class="v">28,2 km <span class="delta up">▲20,9</span></span></div>
+      <div class="wcard"><div class="wk-lbl">29jun-5jul</div>
+        <div class="metric"><span>Carrera</span><span class="v">28,2 km <span class="delta up">▲15,7</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">3</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 20m <span class="delta up">▲11m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">49 bpm <span class="delta up">▼1</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼5</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">6–12 jul</div>
-        <div class="metric"><span>Carrera</span><span class="v">0 km <span class="delta down">▼28,2</span></span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">0 — descanso</span></div>
+      <div class="wcard"><div class="wk-lbl">6-12 jul</div>
+        <div class="metric"><span>Carrera</span><span class="v">0,0 km <span class="delta down">▼28,2</span></span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
         <div class="metric"><span>Sueño</span><span class="v">6h 29m <span class="delta down">▼51m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">51 bpm <span class="delta down">▲2</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta down">▲1</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">13–19 jul</div>
+      <div class="wcard"><div class="wk-lbl">13-19 jul</div>
         <div class="metric"><span>Carrera</span><span class="v">25,8 km <span class="delta up">▲25,8</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">3</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 19m <span class="delta up">▲50m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">51 bpm <span class="delta flat">＝</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">48 bpm <span class="delta down">▲3</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">20–26 jul</div>
+      <div class="wcard"><div class="wk-lbl">20-26 jul</div>
         <div class="metric"><span>Carrera</span><span class="v">13,3 km <span class="delta down">▼12,5</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 fuerza</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 09m <span class="delta down">▼10m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">50 bpm <span class="delta up">▼1</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼3</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">27 jul–2 ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">0 km — vacaciones</span></div>
+      <div class="wcard"><div class="wk-lbl">27jul-2ago</div>
+        <div class="metric"><span>Carrera</span><span class="v">0,0 km <span class="delta down">▼13,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 56m <span class="delta up">▲47m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">49 bpm <span class="delta up">▼1</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta down">▲1</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">3–9 ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">0 km — vacaciones</span></div>
+      <div class="wcard"><div class="wk-lbl">3-9 ago</div>
+        <div class="metric"><span>Carrera</span><span class="v">0,0 km <span class="delta flat">＝</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 56m <span class="delta flat">＝</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">51 bpm <span class="delta down">▲2</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta down">▲1</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">10–16 ago</div>
+      <div class="wcard"><div class="wk-lbl">10-16 ago</div>
         <div class="metric"><span>Carrera</span><span class="v">26,3 km <span class="delta up">▲26,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4</span></div>
         <div class="metric"><span>Sueño</span><span class="v">5h 45m <span class="delta down">▼2h11m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">55 bpm <span class="delta down">▲4</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">51 bpm <span class="delta down">▲4</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">17–23 ago</div>
+      <div class="wcard"><div class="wk-lbl">17-23 ago</div>
         <div class="metric"><span>Carrera</span><span class="v">47,1 km <span class="delta up">▲20,8</span></span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">5 — pico del año</span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">5 + 1 caminata — pico del periodo</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 37m <span class="delta up">▲1h52m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">52 bpm <span class="delta up">▼3</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta up">▼5</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">24–30 ago</div>
+      <div class="wcard"><div class="wk-lbl">24-30 ago</div>
         <div class="metric"><span>Carrera</span><span class="v">38,0 km <span class="delta down">▼9,1</span></span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">4</span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">4 + 2 caminatas</span></div>
         <div class="metric"><span>Sueño</span><span class="v">6h 25m <span class="delta down">▼1h12m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">50 bpm <span class="delta up">▼2</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼1</span></span></div>
       </div>
-      <div class="wcard"><div class="wk-lbl">31 ago–6 sep</div>
+      <div class="wcard"><div class="wk-lbl">31ago-6sep</div>
         <div class="metric"><span>Carrera</span><span class="v">16,7 km <span class="delta down">▼21,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 caminata</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 34m <span class="delta up">▲1h09m</span></span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">49 bpm <span class="delta up">▼1</span></span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta down">▲1</span></span></div>
+      </div>
+      <div class="wcard"><div class="wk-lbl">7-13 sep</div>
+        <div class="metric"><span>Carrera</span><span class="v">14,8 km <span class="delta down">▼1,9</span></span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">2 + 1 fuerza + 4 caminatas</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta down">▲1</span></span></div>
       </div><!--/AUTO:WEEKLY_CARDS-->
       <!--AUTO:CURRENT_WEEK--><div class="wcard partial"><div class="wk-lbl">14-20 sep · en curso</div>
         <div class="metric"><span>Carrera</span><span class="v">15,8 km</span></div>
@@ -471,9 +470,17 @@
 
   <!-- RECOMENDACIONES -->
   <section class="panel" id="recos">
-    <!--AUTO:RECOS--><div class="rec warn">
+    <!--AUTO:RECOS--><div class="rec">
       <div class="dot"></div>
-      <div><h3>Salto brusco de volumen a finales de agosto</h3><p>De ~8 km/semana a ~38 km/semana en 3 semanas es una subida rápida (más del doble recomendado semana a semana). El load ratio de Coros lo confirma indirectamente: pasó de "Maintaining" a "Optimized" varias veces seguidas. Estabiliza 1–2 semanas más antes de subir el volumen otra vez.</p></div>
+      <div><h3>Carga en banda óptima</h3><p>Ratio de carga 0.92 en Coros: dentro de la banda habitual de rendimiento.</p></div>
+    </div>
+    <div class="rec">
+      <div class="dot"></div>
+      <div><h3>Buena base de recuperación</h3><p>FC reposo 47 bpm de media en 14 días (rango 44–50) y HRV 69 ms (baseline 66): tu cuerpo tolera bien la carga actual, así que el margen está en meter más entrenamiento, no en preocuparte por sobreentrenar.</p></div>
+    </div>
+    <div class="rec">
+      <div class="dot"></div>
+      <div><h3>Fuerza en marcha</h3><p>2 sesiones en los últimos 28 días (última el 15 sep). Mantén el ritmo de 2x/semana.</p></div>
     </div>
     <div class="rec">
       <div class="dot"></div>
@@ -481,26 +488,18 @@
     </div>
     <div class="rec">
       <div class="dot"></div>
-      <div><h3>Zonas de FC de Strava desactualizadas</h3><p>Tus zonas manuales en Strava no coinciden exactamente con el cálculo Karvonen (FC reposo 50, FC máx 182) que ya vienes usando en tus análisis. Actualízalas ahí para que todo el ecosistema (Strava + Coros + tus análisis) use el mismo criterio.</p></div>
+      <div><h3>Zonas de FC de Strava desactualizadas</h3><p>Tus zonas manuales en Strava no coinciden exactamente con el cálculo Karvonen que vienes usando en tus análisis. Actualízalas ahí para que Strava, Coros y estas tablas usen el mismo criterio.</p></div>
     </div>
     <div class="rec">
       <div class="dot"></div>
-      <div><h3>Fuerza parada desde el 20 de julio</h3><p>No aparece ninguna sesión de WeightTraining desde entonces. Retomarla 2x/semana es la palanca más directa para llegar sano al 21K con el volumen que viene.</p></div>
-    </div>
-    <div class="rec">
-      <div class="dot"></div>
-      <div><h3>Buena base de recuperación</h3><p>FC reposo 46–57 bpm y HRV estable en 42 ms de baseline son señales de que tu cuerpo tolera bien la carga actual — el margen que tienes es para meter más entrenamiento, no para preocuparte por sobreentrenamiento ahora mismo.</p></div>
-    </div>
-    <div class="rec">
-      <div class="dot"></div>
-      <div><h3>No tengo datos de Apple Salud / MiSalud</h3><p>Este panel se basa solo en Strava y Coros. Si quieres que las cifras de peso, pasos o FC se crucen también con Apple Salud, no tengo un conector directo para eso — tendrías que pasarme los datos manualmente o revisar si Apple Salud sincroniza ya con Coros/Strava.</p></div>
+      <div><h3>No tengo datos de Apple Salud / MiSalud</h3><p>Este panel se basa solo en Strava y Coros. Si quieres que las cifras de peso, pasos o FC se crucen también con Apple Salud, no hay conector directo: o pasas los datos a mano o revisas si Apple Salud sincroniza ya con Coros/Strava.</p></div>
     </div><!--/AUTO:RECOS-->
   </section>
 
 </main>
 
 <footer>
-  <!--AUTO:FOOTER_INFO-->Datos de Strava (perfil, zonas, actividades del 10/6 al 3/9/2026) y Coros (FC reposo, sueño, HRV, carga de entrenamiento) obtenidos el 4 de septiembre de 2026.<!--/AUTO:FOOTER_INFO--> Zonas de FC calculadas por método Karvonen con FC máx de referencia 182 bpm (mejor esfuerzo 10K). No es asesoramiento médico ni nutricional profesional.
+  <!--AUTO:FOOTER_INFO-->Datos de Strava (actividades del 18 sep–17 sep) y Coros (FC reposo, HRV, carga) hasta el 2026-09-17, actualizado el 18 de septiembre de 2026. <!--/AUTO:FOOTER_INFO--> Zonas de FC calculadas por método Karvonen con FC máx de referencia 182 bpm (mejor esfuerzo 10K). No es asesoramiento médico ni nutricional profesional.
 </footer>
 
 <script>
@@ -570,10 +569,10 @@
   new Chart(document.getElementById('chartVol'), {
     type:'bar',
     data:{
-      labels:/*AUTO:CHARTVOL_LABELS*/['14–20 jul','21–27 jul','28 jul–3 ago','4–10 ago','11–17 ago','18–24 ago','25–31 ago','1–4 sep*']/*/AUTO:CHARTVOL_LABELS*/,
+      labels:/*AUTO:CHARTVOL_LABELS*/['27jul-2ago','3-9 ago','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep*']/*/AUTO:CHARTVOL_LABELS*/,
       datasets:[{
         label:'km/semana',
-        data:/*AUTO:CHARTVOL_DATA*/[18.8,13.3,0,8.0,27.3,38.1,38.1,8.3]/*/AUTO:CHARTVOL_DATA*/,
+        data:/*AUTO:CHARTVOL_DATA*/[0,0,26.3,47.1,38,16.7,14.8,15.8]/*/AUTO:CHARTVOL_DATA*/,
         backgroundColor:'#3F5C46',
         borderRadius:2
       }]
@@ -599,7 +598,7 @@
       labels: MONTHLY_LABELS,
       datasets:[{
         label:'km/mes',
-        data:/*AUTO:MONTHLY_VOL*/[93.9,111.0,44.1,29.7,92.4,61.6,67.3,111.4,47.3]/*/AUTO:MONTHLY_VOL*/,
+        data:/*AUTO:MONTHLY_VOL*/[93.9,110.9,44,29.6,92.4,61.6,67.3,111.4,47.3]/*/AUTO:MONTHLY_VOL*/,
         backgroundColor:(ctx)=>ctx.index===new Date().getMonth()?'#D6CDB3':'#3F5C46',
         borderRadius:2
       }]
@@ -618,7 +617,7 @@
       labels: MONTHLY_LABELS,
       datasets:[{
         label:'FC reposo media (bpm)',
-        data:/*AUTO:MONTHLY_RHR*/[52,52,52,53,50,50,50,52,48]/*/AUTO:MONTHLY_RHR*/,
+        data:/*AUTO:MONTHLY_RHR*/[52,52,52,53,50,46.2,46,47.1,46.2]/*/AUTO:MONTHLY_RHR*/,
         borderColor:'#35586B',
         backgroundColor:'rgba(53,88,107,0.12)',
         fill:true,
@@ -636,14 +635,14 @@
   // Weekly trend (volume bars + sleep/RHR lines, dual axis)
   // Los lunes (YYYY-MM-DD) de cada etiqueta: solo los usa update_dashboard.py
   // para casar los datos de Coros con su semana; no se pintan.
-  const WEEKLY_MONDAYS = /*AUTO:WEEKLY_MONDAYS*/['2026-06-15','2026-06-22','2026-06-29','2026-07-13','2026-07-20','2026-08-10','2026-08-17','2026-08-24','2026-08-31','2026-09-07','2026-09-14']/*/AUTO:WEEKLY_MONDAYS*/;
+  const WEEKLY_MONDAYS = /*AUTO:WEEKLY_MONDAYS*/['2026-06-15','2026-06-22','2026-06-29','2026-07-06','2026-07-13','2026-07-20','2026-07-27','2026-08-03','2026-08-10','2026-08-17','2026-08-24','2026-08-31','2026-09-07','2026-09-14']/*/AUTO:WEEKLY_MONDAYS*/;
   new Chart(document.getElementById('chartWeeklyTrend'), {
     data:{
-      labels:/*AUTO:WEEKLY_LABELS*/['15-21 jun','22-28 jun','29jun-5jul','13-19 jul','20-26 jul','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep*']/*/AUTO:WEEKLY_LABELS*/,
+      labels:/*AUTO:WEEKLY_LABELS*/['15-21 jun','22-28 jun','29jun-5jul','6-12 jul','13-19 jul','20-26 jul','27jul-2ago','3-9 ago','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep*']/*/AUTO:WEEKLY_LABELS*/,
       datasets:[
-        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[16.4,12.5,28.2,25.8,13.3,26.3,47.1,38.0,16.7,14.8,15.8]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
-        {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[7.33,6.48,7.32,7.15,7.94,7.93,5.75,7.61,6.42,7.57,7.52]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
-        {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[49,50,45,48,45,51,46,45,46,47,46]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
+        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[16.4,12.5,28.2,0,25.8,13.3,0,0,26.3,47.1,38,16.7,14.8,15.8]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
+        {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[7.33,6.48,7.32,null,7.15,7.94,null,null,7.93,5.75,7.61,6.42,7.57,7.52]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
+        {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[49,50,45,45,48,45,46,47,51,46,45,46,47,46]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
       ]
     },
     options:{
