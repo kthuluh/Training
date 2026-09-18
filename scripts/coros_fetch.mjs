@@ -40,7 +40,8 @@
  *                     para probar el pipeline sin red ni credenciales
  *
  * ── Qué datos hay y cuáles no ──────────────────────────────────────────────
- *   getAnalyse() (`analyse/query`) devuelve por día: rhr (FC reposo),
+ *   getAnalyse() (`analyse/query`) devuelve por día: rhr (FC reposo), pasos
+ *   (si la respuesta trae alguna clave tipo `steps`/`stepCount`),
  *   avgSleepHrv / sleepHrvBase (HRV nocturna y su baseline), t7d (carga
  *   corto plazo), t28d (Base Fitness), trainingLoad, trainingLoadRatio,
  *   tiredRate (fatiga), performance, distance, duration.
@@ -111,6 +112,7 @@ const SLEEP_KEYS = [
     "asleepDuration",
     "dailySleepDuration",
 ];
+const STEPS_KEYS = ["steps", "stepCount", "dailySteps", "totalSteps", "step"];
 const HRV_KEYS = ["avgSleepHrv", "sleepHrv", "hrvAvg", "hrv"];
 const HRV_BASE_KEYS = ["sleepHrvBase", "hrvBase", "hrvBaseline"];
 const RHR_KEYS = ["rhr", "restingHeartRate", "restingHR"];
@@ -129,6 +131,19 @@ function sleepHoursOf(day) {
         return toHours(total);
     }
     return null;
+}
+
+/**
+ * Pasos del día: la clave puede llamarse de varias formas y a veces viene en
+ * miles (10.5 = 10.500 pasos). Devuelve un entero plausible o null.
+ */
+function stepsOf(day) {
+    const raw = pick(day, STEPS_KEYS);
+    if (raw === null) return null;
+    let n = raw;
+    if (n > 0 && n < 1000) n = n * 1000; // 10.5 → 10.500
+    n = Math.round(n);
+    return n >= 100 && n <= 100000 ? n : null;
 }
 
 function mean(values) {
@@ -278,6 +293,7 @@ async function main() {
             hrv: pick(src, HRV_KEYS),
             hrv_base: pick(src, HRV_BASE_KEYS),
             sleep_hours: src ? sleepHoursOf(src) : null,
+            steps: src ? stepsOf(src) : null,
             load_short: num(src?.t7d), // 7 días: "Load Impact"
             load_long: num(src?.t28d), // 28 días: "Base Fitness"
             training_load: num(src?.trainingLoad ?? src?.tib),
@@ -330,6 +346,7 @@ async function main() {
         resting_hr: series.some((d) => d.resting_hr !== null),
         hrv: series.some((d) => d.hrv !== null),
         sleep_hours: series.some((d) => d.sleep_hours !== null),
+        steps: series.some((d) => d.steps !== null),
         load_ratio: series.some((d) => d.load_ratio !== null),
     };
     const warnings = [];
@@ -363,6 +380,7 @@ async function main() {
                 return v.length ? Math.max(...v) : null;
             })(),
             sleep_hours_avg: mean(window14.map((d) => d.sleep_hours)),
+            steps_avg: mean(window14.map((d) => d.steps)),
             hrv_avg: mean(window14.map((d) => d.hrv)),
             n_days: window14.filter((d) => d.has_data).length,
         },
@@ -384,6 +402,7 @@ async function main() {
         `  ${fmt("FC reposo", payload.latest?.resting_hr, " bpm")}  ·  ` +
             `${fmt("HRV", payload.latest?.hrv, " ms")}  ·  ` +
             `${fmt("sueño", payload.latest?.sleep_hours, " h")}  ·  ` +
+            `${fmt("pasos", payload.latest_14?.steps_avg !== null ? Math.round(payload.latest_14?.steps_avg) : null, "")}  ·  ` +
             `${fmt("ratio carga", payload.latest?.load_ratio, "")}`,
     );
     for (const w of warnings) console.log(`  ⚠ ${w}`);
