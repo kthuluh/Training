@@ -148,7 +148,7 @@
   <div class="hero-top">
     <div>
       <h1>Kthuluh — Panel de entrenamiento y salud</h1>
-      <p>Arenys de Mar · datos en vivo de Strava y Coros · <!--AUTO:UPDATED_DATE-->17 sep 2026<!--/AUTO:UPDATED_DATE--></p>
+      <p>Arenys de Mar · datos en vivo de Strava y Coros · <!--AUTO:UPDATED_DATE-->18 sep 2026<!--/AUTO:UPDATED_DATE--></p>
     </div>
   </div>
   <div class="hero-stats">
@@ -156,7 +156,7 @@
     <div class="hero-stat"><div class="num">182</div><div class="lbl">FC máx observada (10K)</div></div>
     <div class="hero-stat"><div class="num">73 kg</div><div class="lbl">peso (confirmado)</div></div>
     <div class="hero-stat"><div class="num">46</div><div class="lbl">edad</div></div>
-    <div class="hero-stat"><div class="num"><!--AUTO:HERO_RATIO-->0.69<!--/AUTO:HERO_RATIO--></div><div class="lbl">ratio de carga hoy</div></div>
+    <div class="hero-stat"><div class="num"><!--AUTO:HERO_RATIO-->0.92<!--/AUTO:HERO_RATIO--></div><div class="lbl">ratio de carga hoy</div></div>
   </div>
   <svg class="elevation-svg" viewBox="0 0 400 70" preserveAspectRatio="none"><polyline points="0,60 20,55 40,58 60,40 80,45 100,20 120,30 140,15 160,25 180,10 200,22 220,35 240,18 260,30 280,45 300,38 320,50 340,42 360,55 380,48 400,58" fill="none" stroke="#CFE0D2" stroke-width="1.5"/></svg>
 </header>
@@ -179,8 +179,8 @@
     <div class="section-title">Estado actual</div>
     <div class="grid3">
       <div class="card"><h3>Peso</h3><div class="big">73 kg</div><div class="sub">Confirmado por ti. El perfil de Coros todavía marca 70 kg — actualízalo ahí para que ambas plataformas coincidan.</div></div>
-      <div class="card"><h3>FC reposo (14 días)</h3><div class="big"><!--AUTO:RHR_CARD-->47 bpm<!--/AUTO:RHR_CARD--></div><div class="sub"><!--AUTO:RHR_CARD_SUB-->Rango 42–50 bpm, últimos 14 días desde el reloj Coros (actualizado 2026-09-16, API no oficial).<!--/AUTO:RHR_CARD_SUB--></div></div>
-      <div class="card"><h3>HRV (Coros)</h3><div class="big"><!--AUTO:HRV_CARD-->68 ms<!--/AUTO:HRV_CARD--></div><div class="sub"><!--AUTO:HRV_CARD_SUB-->Media de las últimas 2 semanas desde EvoLab; baseline Coros 65 ms (la HRV nocturna sí la expone la librería; se refresca a diario).<!--/AUTO:HRV_CARD_SUB--></div></div>
+      <div class="card"><h3>FC reposo (14 días)</h3><div class="big"><!--AUTO:RHR_CARD-->47 bpm<!--/AUTO:RHR_CARD--></div><div class="sub"><!--AUTO:RHR_CARD_SUB-->Rango 44–50 bpm, últimos 14 días desde el reloj Coros (actualizado 2026-09-17, API no oficial).<!--/AUTO:RHR_CARD_SUB--></div></div>
+      <div class="card"><h3>HRV (Coros)</h3><div class="big"><!--AUTO:HRV_CARD-->69 ms<!--/AUTO:HRV_CARD--></div><div class="sub"><!--AUTO:HRV_CARD_SUB-->Media de las últimas 2 semanas desde EvoLab; baseline Coros 66 ms (la HRV nocturna sí la expone la librería; se refresca a diario).<!--/AUTO:HRV_CARD_SUB--></div></div>
     </div>
 
     <div class="section-title">Frecuencia cardíaca en reposo — últimos 30 días</div>
@@ -189,7 +189,7 @@
     <div class="section-title">Carga de entrenamiento (Coros) — últimos 14 días</div>
     <div class="card">
       <div class="chart-wrap"><canvas id="chartLoad"></canvas></div>
-      <div class="sub" style="margin-top:10px;"><!--AUTO:LOAD_CAPTION-->Carga corto plazo (7 días) vs. largo plazo (28 días, Base Fitness). Ratio actual 0.69 → por debajo de tu carga habitual: hay margen para meter más volumen. Datos de EvoLab vía Coros, 2026-09-16.<!--/AUTO:LOAD_CAPTION--></div>
+      <div class="sub" style="margin-top:10px;"><!--AUTO:LOAD_CAPTION-->Carga corto plazo (7 días) vs. largo plazo (28 días, Base Fitness). Ratio actual 0.92 → dentro de la banda habitual de rendimiento. Datos de EvoLab vía Coros, 2026-09-17.<!--/AUTO:LOAD_CAPTION--></div>
     </div>
 
     <div class="section-title">Sueño (media últimos 14 días)</div>
@@ -457,10 +457,10 @@
         <div class="metric"><span>FC reposo</span><span class="v">49 bpm <span class="delta up">▼1</span></span></div>
       </div>
       <!--AUTO:CURRENT_WEEK--><div class="wcard partial"><div class="wk-lbl">14-20 sep · en curso</div>
-        <div class="metric"><span>Carrera</span><span class="v">7.8 km</span></div>
-        <div class="metric"><span>Sesiones</span><span class="v">1</span></div>
+        <div class="metric"><span>Carrera</span><span class="v">15.8 km</span></div>
+        <div class="metric"><span>Sesiones</span><span class="v">2</span></div>
         <div class="metric" style="opacity:0.7;"><span>Sueño <i style="font-size:10px;">(manual)</i></span><span class="v">—</span></div>
-        <div class="metric"><span>FC reposo</span><span class="v">47 bpm</span></div>
+        <div class="metric"><span>FC reposo</span><span class="v">46 bpm</span></div>
       </div><!--/AUTO:CURRENT_WEEK-->
     </div>
   </section>
@@ -520,10 +520,10 @@
   new Chart(document.getElementById('chartRHR'), {
     type:'line',
     data:{
-      labels:/*AUTO:RHR30_LABELS*/['08/19','08/20','08/21','08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03','09/04','09/05','09/06','09/07','09/08','09/09','09/10','09/11','09/12','09/13','09/14','09/15','09/16','09/17']/*/AUTO:RHR30_LABELS*/,
+      labels:/*AUTO:RHR30_LABELS*/['08/20','08/21','08/22','08/23','08/24','08/25','08/26','08/27','08/28','08/29','08/30','08/31','09/01','09/02','09/03','09/04','09/05','09/06','09/07','09/08','09/09','09/10','09/11','09/12','09/13','09/14','09/15','09/16','09/17','09/18']/*/AUTO:RHR30_LABELS*/,
       datasets:[{
         label:'FC reposo (bpm)',
-        data:/*AUTO:RHR30_DATA*/[47,43,48,43,44,44,43,45,44,44,45,48,49,41,43,49,42,50,46,49,46,45,49,47,47,46,48,47,47,null]/*/AUTO:RHR30_DATA*/,
+        data:/*AUTO:RHR30_DATA*/[43,48,43,44,44,43,45,44,44,45,48,49,41,43,49,42,50,46,49,46,45,49,47,47,46,48,47,47,44,null]/*/AUTO:RHR30_DATA*/,
         borderColor:'#3F5C46',
         backgroundColor:'rgba(63,92,70,0.12)',
         fill:true,
@@ -546,10 +546,10 @@
   new Chart(document.getElementById('chartLoad'), {
     type:'line',
     data:{
-      labels:/*AUTO:LOAD14_LABELS*/['09/04','09/05','09/06','09/07','09/08','09/09','09/10','09/11','09/12','09/13','09/14','09/15','09/16','09/17']/*/AUTO:LOAD14_LABELS*/,
+      labels:/*AUTO:LOAD14_LABELS*/['09/05','09/06','09/07','09/08','09/09','09/10','09/11','09/12','09/13','09/14','09/15','09/16','09/17','09/18']/*/AUTO:LOAD14_LABELS*/,
       datasets:[
-        {label:'Carga corto plazo (t7d)',data:/*AUTO:LOAD14_SHORT*/[374,284,167,167,173,324,262,186,204,302,366,368,217,217]/*/AUTO:LOAD14_SHORT*/,borderColor:'#A9552E',backgroundColor:'transparent',tension:0.3,pointRadius:2},
-        {label:'Carga largo plazo (Base Fitness)',data:/*AUTO:LOAD14_LONG*/[1518,1518,1522,1387,1393,1459,1370,1326,1344,1446,1399,1301,1301,1211]/*/AUTO:LOAD14_LONG*/,borderColor:'#35586B',backgroundColor:'transparent',tension:0.3,pointRadius:2,borderDash:[4,3]}
+        {label:'Carga corto plazo (t7d)',data:/*AUTO:LOAD14_SHORT*/[284,167,167,173,324,262,186,204,302,366,368,217,350,325]/*/AUTO:LOAD14_SHORT*/,borderColor:'#A9552E',backgroundColor:'transparent',tension:0.3,pointRadius:2},
+        {label:'Carga largo plazo (Base Fitness)',data:/*AUTO:LOAD14_LONG*/[1518,1522,1387,1393,1459,1370,1326,1344,1446,1399,1301,1301,1344,1208]/*/AUTO:LOAD14_LONG*/,borderColor:'#35586B',backgroundColor:'transparent',tension:0.3,pointRadius:2,borderDash:[4,3]}
       ]
     },
     options:{
@@ -590,7 +590,7 @@
       labels:['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep*'],
       datasets:[{
         label:'km/mes',
-        data:/*AUTO:MONTHLY_VOL*/[93.9,111.0,44.1,29.7,92.4,61.6,67.3,111.4,39.2]/*/AUTO:MONTHLY_VOL*/,
+        data:/*AUTO:MONTHLY_VOL*/[93.9,111.0,44.1,29.7,92.4,61.6,67.3,111.4,47.3]/*/AUTO:MONTHLY_VOL*/,
         backgroundColor:(ctx)=>ctx.index===8?'#D6CDB3':'#3F5C46',
         borderRadius:2
       }]
@@ -632,9 +632,9 @@
     data:{
       labels:/*AUTO:WEEKLY_LABELS*/['15-21 jun','22-28 jun','29jun-5jul','13-19 jul','20-26 jul','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep*']/*/AUTO:WEEKLY_LABELS*/,
       datasets:[
-        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[16.4,12.5,28.2,25.8,13.3,26.3,47.1,38.0,16.7,14.8,7.8]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
+        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[16.4,12.5,28.2,25.8,13.3,26.3,47.1,38.0,16.7,14.8,15.8]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
         {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[7.33,6.48,7.32,7.15,7.94,7.93,5.75,7.61,6.42,7.57,7.52]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
-        {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[49,49,45,48,45,51,46,45,46,47,47]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
+        {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[49,50,45,48,45,51,46,45,46,47,46]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
       ]
     },
     options:{
