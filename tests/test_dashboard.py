@@ -337,27 +337,54 @@ class TestSinDatos(unittest.TestCase):
         self.assertTrue(any("sin coros_data.json" in n for n in notes))
 
     def test_sin_coros_se_conservan_los_valores_manuales(self):
+        """Sin coros_data.json todo lo que sale de Coros se queda como está."""
         acts = stats.normalize(build_activities())
-        html, _ = run_all_sections(new_html(), acts, None)
-        # Sin Coros, las tarjetas del Resumen se quedan como estaban…
-        self.assertEqual(marked(html, "RHR_CARD"), "47 bpm")
-        self.assertEqual(marked(html, "HERO_RHR"), "47")
-        self.assertEqual(marked(html, "STEPS_CARD"), "~13.790")
-        # …y las semanas de las que no hay dato conservan el valor manual leído
-        # del HTML (no un 0 ni un guion inventado)
-        self.assertIn("49", marked_js(html, "WEEKLY_RHR"))
-        # La tendencia de FC reposo / sueño no se toca
-        self.assertIn("52", marked(html, "TREND_RHR_CARD"))
+        antes = new_html()
+        html, _ = run_all_sections(antes, acts, None)
+        # Las tarjetas del Resumen… (se comparan con el propio HTML: el bot las
+        # reescribe cada mañana y los tests no deben caducar)
+        for marker in ("RHR_CARD", "HERO_RHR", "STEPS_CARD", "TREND_RHR_CARD",
+                       "TREND_SLEEP_CARD", "HRV_CARD", "LOAD_CAPTION"):
+            self.assertTrue(marked(antes, marker), f"{marker} vacío en el HTML")
+            self.assertEqual(marked(html, marker), marked(antes, marker), marker)
+        # …y las semanas sin dato conservan el valor manual leído del HTML
+        # (no un 0 ni un guion inventado)
+        esperado = ud.parse_js_array(marked_js(antes, "WEEKLY_RHR"))
+        ahora = ud.parse_js_array(marked_js(html, "WEEKLY_RHR"))
+        self.assertEqual(ahora[:len(esperado)], esperado)   # los manuales, intactos
+        self.assertTrue(all(v is None for v in ahora[len(esperado):]),
+                        "las semanas sin dato se quedan en blanco, no en 0")
+        self.assertEqual(ud.parse_js_array(marked_js(html, "MONTHLY_RHR")),
+                         ud.parse_js_array(marked_js(antes, "MONTHLY_RHR")))
 
     def test_meses_sin_datos_conservan_la_tarjeta_manual(self):
-        """Marzo y abril no están en el fixture: se conserva la tarjeta manual."""
-        acts = stats.normalize(build_activities())
-        html, _ = run_all_sections(new_html(), acts, build_coros())
-        meses = marked(html, "MONTHLY_CARDS")
-        self.assertIn("Marzo", meses)          # del HTML manual, sin datos en Strava
+        """Un mes sin datos en Strava conserva su tarjeta manual; con datos, no.
+
+        Se monta un HTML de juguete para que el test no dependa de lo que el bot
+        haya dejado en el dashboard real (en marzo hay datos de verdad, aunque el
+        fixture no los traiga).
+        """
+        manual = ('<div class="mcard"><h4>Marzo</h4><div class="v">44,1 km</div>'
+                  '<div class="m2">recuperación post-maratón</div></div>')
+        html = ("<!--AUTO:MONTHLY_CARDS-->" + manual + "<!--/AUTO:MONTHLY_CARDS-->"
+                "<!--AUTO:MONTHLY_RANGE_TITLE-->enero a mayo<!--/AUTO:MONTHLY_RANGE_TITLE-->")
+        notes = []
+        out, _ = ud.apply_historial(html, stats.normalize(build_activities()),
+                                    build_coros(), TODAY, notes)
+        meses = ud.get_marked(out, marker="MONTHLY_CARDS")
+        self.assertIn("Marzo", meses)                        # sin datos: manual
         self.assertIn("recuperación post-maratón", meses)
-        self.assertIn("Agosto", meses)         # regenerada con datos reales
-        self.assertNotIn("enero a mayo", marked(html, "MONTHLY_RANGE_TITLE"))
+        self.assertIn("Agosto", meses)                       # con datos: regenerada
+        self.assertIn("114,5 km", meses)   # agosto del fixture
+        # El título del bloque mensual se recalcula solo
+        self.assertEqual(ud.get_marked(out, marker="MONTHLY_RANGE_TITLE"),
+                         "Resumen mensual — enero a septiembre")
+        # Y con datos en marzo, la tarjeta manual se sustituye por la calculada
+        con_marzo = stats.normalize(build_activities() + [raw_activity(date(2026, 3, 8), 12.0, 70.0)])
+        out2, _ = ud.apply_historial(html, con_marzo, build_coros(), TODAY, [])
+        meses2 = ud.get_marked(out2, marker="MONTHLY_CARDS")
+        self.assertNotIn("recuperación post-maratón", meses2)
+        self.assertIn("Marzo", meses2)
 
     def test_coros_con_valores_basura_no_revienta(self):
         """Un coros_data.json editado a mano no debe tumbar la actualización."""
@@ -372,14 +399,17 @@ class TestSinDatos(unittest.TestCase):
         self.assertEqual(html.count("<!--AUTO:"), html.count("<!--/AUTO:"))
 
     def test_sin_actividades_no_se_tocan_los_graficos_de_strava(self):
-        coros = build_coros()
-        html, _ = run_all_sections(new_html(), [], coros)
-        self.assertEqual(
-            ud.parse_js_array(marked_js(html, "CHARTVOL_DATA")),
-            [18.8, 13.3, 0, 8.0, 27.3, 38.1, 38.1, 8.3],
-        )
-        self.assertEqual(ud.parse_js_array(marked_js(html, "MONTHLY_VOL")),
-                         [93.9, 111.0, 44.1, 29.7, 92.4, 61.6, 67.3, 111.4, 39.2])
+        """Sin sesiones de Strava los gráficos se quedan como estaban.
+
+        Se comparan contra el propio HTML, no contra números fijos: el bot
+        reescribe esos valores cada mañana en `main` y el test no debe caducar.
+        """
+        antes = new_html()
+        html, _ = run_all_sections(antes, [], build_coros())
+        for marker in ("CHARTVOL_DATA", "MONTHLY_VOL", "WEEKLY_VOL"):
+            esperado = ud.parse_js_array(marked_js(antes, marker))
+            self.assertTrue(esperado, f"{marker} está vacío en el HTML")
+            self.assertEqual(ud.parse_js_array(marked_js(html, marker)), esperado, marker)
 
 
 # ---------------------------------------------------------------------------
@@ -393,14 +423,36 @@ class TestHelpers(unittest.TestCase):
             {"Z1": (116, 129), "Z2": (130, 142), "Z3": (143, 156), "Z4": (157, 169), "Z5": (170, 182)},
         )
 
-    def test_lee_las_tarjetas_manuales_del_html(self):
-        cards = ud.snapshot_weekly_cards(new_html(), TODAY)
-        # "31 ago–6 sep" del HTML manual → lunes 31 ago 2026, con sueño y pulso
-        self.assertEqual(cards.get("2026-08-31"), {"sleep_hours": 7 + 34 / 60, "resting_hr": 49})
-        # El HTML manual trae 13 semanas (8 jun → 31 ago); la semana en curso va aparte
-        self.assertEqual(len(cards), 13)
-        self.assertEqual(cards.get("2026-06-08"), {"sleep_hours": 7 + 9 / 60, "resting_hr": 49})
-        self.assertNotIn("2026-09-07", cards)
+    def test_lee_las_tarjetas_del_html(self):
+        """El parser de la rejilla semanal: valores exactos y sin estridencias.
+
+        Los valores del HTML real no se dejan fijos a propósito: el dashboard se
+        reescribe solo cada mañana y lo que hay que garantizar es que el parser
+        lea bien lo que se encuentre (lunes válidos, cifras con sentido).
+        """
+        sintetico = (
+            "<!--AUTO:WEEKLY_CARDS-->"
+            '<div class="wcard"><div class="wk-lbl">31 ago–6 sep</div>'
+            '<div class="metric"><span>Sueño</span><span class="v">7 h 34 m</span></div>'
+            '<div class="metric"><span>FC reposo</span><span class="v">49 bpm</span></div></div>'
+            '<div class="wcard"><div class="wk-lbl">7–13 sep</div>'
+            '<div class="metric"><span>Sueño (Coros)</span><span class="v">8 h 5 m</span></div></div>'
+            "<!--/AUTO:WEEKLY_CARDS-->"
+        )
+        cards = ud.snapshot_weekly_cards(sintetico, TODAY)
+        # "31 ago–6 sep" → lunes 31 ago 2026, con sueño y pulso
+        self.assertEqual(cards["2026-08-31"], {"sleep_hours": 7 + 34 / 60, "resting_hr": 49})
+        # La semana sin pulso solo trae sueño
+        self.assertEqual(cards["2026-09-07"], {"sleep_hours": 8 + 5 / 60})
+
+        reales = ud.snapshot_weekly_cards(new_html(), TODAY)
+        self.assertGreaterEqual(len(reales), 8, "la rejilla semanal se ha quedado corta")
+        for iso, vals in reales.items():
+            self.assertEqual(date.fromisoformat(iso).weekday(), 0, iso)
+            if "resting_hr" in vals:
+                self.assertTrue(30 <= vals["resting_hr"] <= 90, (iso, vals))
+            if "sleep_hours" in vals:
+                self.assertTrue(3 <= vals["sleep_hours"] <= 12, (iso, vals))
 
     def test_best_effort_se_queda_con_la_mejor(self):
         acts = stats.normalize([
