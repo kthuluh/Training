@@ -1,0 +1,88 @@
+name: Diagnose COROS MCP
+
+# Sonda de diagnóstico SIN efectos secundarios: no refresca ni consume tokens
+# (un refresh exitoso podría rotar el refresh token guardado). Solo pregunta
+# a cada issuer si reconoce el client_id del secreto, vía /oauth2/authorize
+# (un cliente desconocido recibe un 400 "not registered"; uno conocido, la
+# página/redirect de login) y si el registro dinámico sigue abierto.
+#
+# Úsalo cuando el paso de sueño falle con `invalid_client`: dice en qué
+# issuer (mcp.coros.com / mcpeu / mcpus) vive tu cliente, para fijar
+# COROS_MCP_ISSUER en los workflows y que el refresco vuelva a ser automático.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sonda OAuth (sin imprimir tokens)
+        env:
+          CID: ${{ secrets.COROS_MCP_CLIENT_ID }}
+          RT: ${{ secrets.COROS_MCP_REFRESH_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, urllib.parse, urllib.request, urllib.error
+
+          CID = os.environ.get("CID", "")
+          RT = os.environ.get("RT", "")
+          print(f"secretos: COROS_MCP_CLIENT_ID definido={bool(CID)} "
+                f"({len(CID)} caracteres), COROS_MCP_REFRESH_TOKEN definido={bool(RT)}")
+
+          def get(url):
+              req = urllib.request.Request(url, headers={"Accept": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      return r.status, r.geturl(), r.read().decode("utf-8", "replace")[:200]
+              except urllib.error.HTTPError as e:
+                  return e.code, e.geturl(), e.read().decode("utf-8", "replace")[:300]
+              except Exception as e:
+                  return "ERR", url, str(e)[:200]
+
+          def post_json(url, body):
+              req = urllib.request.Request(
+                  url, data=json.dumps(body).encode(),
+                  headers={"Content-Type": "application/json", "Accept": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      return r.status, json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:
+                  try:
+                      return e.code, json.loads(e.read().decode())
+                  except Exception:
+                      return e.code, {}
+              except Exception as e:
+                  return "ERR", {"error": str(e)[:200]}
+
+          ISSUERS = ["https://mcp.coros.com", "https://mcpeu.coros.com", "https://mcpus.coros.com"]
+          for issuer in ISSUERS:
+              # 1) ¿qué issuer declara este host en su metadata?
+              st, _, meta_txt = get(f"{issuer}/.well-known/oauth-authorization-server")
+              try:
+                  meta_issuer = json.loads(meta_txt).get("issuer")
+              except Exception:
+                  meta_issuer = None
+              print(f"\n{issuer}: metadata issuer={meta_issuer}")
+
+              # 2) ¿reconoce este issuer el client_id guardado? (sin consumir nada)
+              if CID:
+                  q = urllib.parse.urlencode({
+                      "response_type": "code", "client_id": CID,
+                      "redirect_uri": "http://127.0.0.1:43123/callback",
+                      "state": "diag", "code_challenge": "x" * 43,
+                      "code_challenge_method": "S256"})
+                  st, final, body = get(f"{issuer}/oauth2/authorize?{q}")
+                  # cliente conocido → 200/302 hacia login; desconocido → 400 "not registered"
+                  print(f"  authorize con client_id guardado → HTTP {st}; "
+                        f"cliente reconocido={st in (200, 302, 303)}; detalle={body[:160]!r}")
+
+              # 3) ¿sigue abierto el registro dinámico?
+              st, reg = post_json(f"{issuer}/connect/register", {
+                  "client_name": "arena-diag", "redirect_uris": ["http://127.0.0.1:43123/callback"],
+                  "grant_types": ["authorization_code", "refresh_token"], "response_types": ["code"],
+                  "scope": "openid offline_access", "token_endpoint_auth_method": "none"})
+              ok = isinstance(reg, dict) and bool(reg.get("client_id"))
+              print(f"  registro dinámico → HTTP {st}, client_id_nuevo={ok}"
+                    + ("" if ok else f", detalle={str(reg)[:160]!r}"))
+          EOF
