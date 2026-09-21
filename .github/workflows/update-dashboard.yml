@@ -65,6 +65,8 @@ jobs:
       - name: Fetch sueño (COROS MCP oficial) → coros_sleep.json
         continue-on-error: true
         env:
+          # Si está definido, coros_mcp.py lo usa tal cual y se salta el refresco.
+          COROS_MCP_ACCESS_TOKEN: ${{ secrets.COROS_MCP_ACCESS_TOKEN }}
           COROS_MCP_CLIENT_ID: ${{ secrets.COROS_MCP_CLIENT_ID }}
           COROS_MCP_REFRESH_TOKEN: ${{ secrets.COROS_MCP_REFRESH_TOKEN }}
           # Cubre las 12 semanas del histórico + el bloque de 30 noches.
