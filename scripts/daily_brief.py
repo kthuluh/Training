@@ -7,6 +7,10 @@ Fuentes:
     `scripts/coros_fetch.mjs` con la librería @pinta365/coros. FC reposo,
     HRV nocturna y carga de entrenamiento (EvoLab). Si el archivo no existe
     o está caído, el correo se manda igual sin esos datos.
+  - Sueño (OPCIONAL, API **oficial**): `coros_sleep.json`, que escribe
+    `scripts/coros_mcp.py` contra el MCP oficial de COROS (`querySleepData`).
+    La librería de EvoLab no tiene horas de sueño, por eso va aparte; se
+    superpone en `coros_data.load()`. Si falta, la casilla sale en "—".
 
 Variables de entorno requeridas (se configuran como GitHub Secrets):
   STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
@@ -304,6 +308,7 @@ def _coros_html(coros):
         f"<table style='border-collapse:collapse'><tr>{cells}</tr></table>"
         f"{sleep_line}"
         f"<div style='font-size:11px;color:#888'>Fuente: Coros EvoLab vía @pinta365/coros (API no oficial){date_txt}"
+        f"{' · sueño: MCP oficial de COROS' if coros.get('sleep_source') else ''}"
         f"{' · ' + 'datos de ayer o más viejos' if coros.get('stale') else ''}</div>"
         f"{notes_html}"
     )

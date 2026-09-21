@@ -28,7 +28,11 @@ jobs:
           node-version: "22"
 
       # Los tests no usan red ni credenciales: van con fixtures locales.
-      # (update_dashboard.py importa `requests` dentro de un try/except, así que
-      # no hace falta instalar dependencias.)
+      # `requests` sí hace falta: update_dashboard.py lo importa dentro de un
+      # try/except, pero daily_brief.py y coros_mcp.py lo importan arriba del
+      # todo y hay tests que importan esos módulos.
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
       - name: Run tests
         run: python -m unittest discover -s tests -t . -v
