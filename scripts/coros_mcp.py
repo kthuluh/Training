@@ -117,7 +117,7 @@ def _post(url, *, form=None, json_body=None, headers=None):
         payload = resp.json()
     except ValueError:
         payload = {"_raw_text": resp.text[:500]}
-    if resp.status_code != 200:
+    if not 200 <= resp.status_code < 300:
         raise CorosMCPError(f"{url} → HTTP {resp.status_code}: {_safe(payload)}")
     return payload
 
