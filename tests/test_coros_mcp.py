@@ -15,11 +15,19 @@ Lo que se cubre, y por qué importa:
 4. La superposición sobre `coros_data.json` y que el correo pinte el sueño.
 """
 
+import base64
+import contextlib
+import hashlib
+import io
 import json
 import re
 import sys
 import tempfile
+import threading
+import time
 import unittest
+import urllib.parse
+import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
 from unittest import mock
@@ -30,6 +38,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import coros_data  # noqa: E402
 import coros_mcp  # noqa: E402
 import daily_brief as db  # noqa: E402
+import get_coros_mcp_token as get_token  # noqa: E402
 
 TODAY = date(2026, 9, 18)
 STRAVA = {"yesterday": "Morning Run (Run): 8.2 km, 5:32/km, 40 m desnivel", "week_km": 41.7}
@@ -365,6 +374,124 @@ class TestEscribirFichero(unittest.TestCase):
             self.assertEqual(payload["days"], [])
             self.assertTrue(payload["warnings"])
             self.assertEqual(coros_data.load_sleep(p), {})
+
+
+class TestLoginLocal(unittest.TestCase):
+    """El paso único lo hace el usuario en su máquina; aquí se prueba la mecánica."""
+
+    PUERTO = 43199
+
+    def _llama(self, code, state):
+        resultado = {}
+
+        def hilo():
+            resultado["code"] = get_token.espera_codigo(puerto=self.PUERTO, state=state, timeout=5)
+
+        t = threading.Thread(target=hilo, daemon=True)
+        t.start()
+        time.sleep(0.3)  # deja que el servidor se ponga a escuchar
+        qs = urllib.parse.urlencode({"code": code, "state": state})
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{self.PUERTO}/callback?{qs}", timeout=5).read()
+        except Exception:
+            pass  # un 400 (state mal) también es una respuesta válida para el test
+        t.join(timeout=8)
+        return resultado.get("code")
+
+    def test_pkce_el_challenge_es_s256_del_verifier(self):
+        verifier, challenge = get_token.pkce()
+        esperado = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+        self.assertEqual(challenge, esperado)
+        self.assertNotIn("=", verifier)
+        self.assertNotEqual(verifier, get_token.pkce()[0])  # distinto en cada ejecución
+
+    def test_recoge_el_code_del_callback(self):
+        self.assertEqual(self._llama("CODE123", "ST-OK"), "CODE123")
+
+    def test_rechaza_un_state_que_no_coincide(self):
+        # Servidor esperando state "BUENO"; le llega un callback con otro state.
+        resultado = {}
+
+        def hilo():
+            resultado["code"] = get_token.espera_codigo(puerto=self.PUERTO, state="BUENO", timeout=2)
+
+        t = threading.Thread(target=hilo, daemon=True)
+        t.start()
+        time.sleep(0.3)
+        try:
+            urllib.request.urlopen(
+                f"http://127.0.0.1:{self.PUERTO}/callback?code=ROBADO&state=MALO", timeout=5).read()
+        except Exception:
+            pass
+        t.join(timeout=8)
+        self.assertIsNone(resultado["code"])
+
+    def test_sin_callback_devuelve_none_al_cabarse_el_tiempo(self):
+        inicio = time.time()
+        self.assertIsNone(get_token.espera_codigo(puerto=self.PUERTO, state="X", timeout=1))
+        self.assertLess(time.time() - inicio, 5)
+
+    def test_main_completo_sin_red(self):
+        """main() de verdad: registro + navegador + callback + intercambio.
+
+        Solo se parchean las dos llamadas a COROS (sin red aquí); el callback
+        es una petición HTTP real a 127.0.0.1, como la haría el navegador.
+        """
+        vistos = {}
+
+        def falso_open(url):
+            vistos["url"] = url
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+
+            def disparar():
+                time.sleep(0.3)
+                qs = urllib.parse.urlencode({"code": "CODE-REAL",
+                                             "state": query["state"][0]})
+                try:
+                    urllib.request.urlopen(
+                        f"http://127.0.0.1:{get_token.PUERTO_CALLBACK}/callback?{qs}",
+                        timeout=5).read()
+                except Exception:
+                    pass
+
+            threading.Thread(target=disparar, daemon=True).start()
+            return True
+
+        salida = io.StringIO()
+        with mock.patch.object(coros_mcp, "register_client", return_value="CID-123"), \
+             mock.patch.object(coros_mcp, "exchange_code",
+                               return_value={"refresh_token": "RT-999", "expires_in": 3600}) as cambio, \
+             mock.patch("builtins.input", return_value=""), \
+             mock.patch.object(get_token.webbrowser, "open", side_effect=falso_open), \
+             contextlib.redirect_stdout(salida):
+            self.assertEqual(get_token.main(), 0)
+
+        texto = salida.getvalue()
+        self.assertIn("COROS_MCP_CLIENT_ID = CID-123", texto)
+        self.assertIn("COROS_MCP_REFRESH_TOKEN = RT-999", texto)
+        # El code que llegó por el callback es el que se canjea, con su verifier.
+        self.assertEqual(cambio.call_args[0][0], "CID-123")
+        self.assertEqual(cambio.call_args[0][1], "CODE-REAL")
+        self.assertTrue(cambio.call_args[0][2])            # code_verifier
+        # Y la URL de autorización lleva PKCE, el resource del MCP y el state.
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(vistos["url"]).query)
+        self.assertEqual(params["code_challenge_method"], ["S256"])
+        self.assertEqual(params["scope"], [coros_mcp.DEFAULT_SCOPES])
+        self.assertEqual(params["resource"], ["https://mcp.coros.com/mcp"])
+        self.assertEqual(params["redirect_uri"], [get_token.REDIRECT_URI])
+
+    def test_puerto_ocupado_no_revienta(self):
+        import socket
+
+        ocupado = socket.socket()
+        ocupado.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        ocupado.bind(("127.0.0.1", self.PUERTO))
+        ocupado.listen(1)
+        try:
+            self.assertIsNone(get_token.espera_codigo(puerto=self.PUERTO, state="X", timeout=1))
+        finally:
+            ocupado.close()
 
 
 if __name__ == "__main__":
