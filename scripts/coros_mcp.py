@@ -42,10 +42,15 @@ import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-import requests
+# A propósito sin dependencias: este script y get_coros_mcp_token.py se ejecutan
+# en el ordenador del usuario con un `python3` pelado, así que nada de requests.
+# (El cliente oficial de COROS hace lo mismo: solo urllib.)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -72,8 +77,42 @@ class CorosMCPError(RuntimeError):
 # HTTP básico
 # ---------------------------------------------------------------------------
 
+class _Response:
+    """Lo mínimo que hace falta de una respuesta HTTP (forma de requests.Response)."""
+
+    def __init__(self, status_code: int, body: str):
+        self.status_code = status_code
+        self.text = body
+
+    def json(self):
+        return json.loads(self.text)
+
+
+def _http(url, *, form=None, json_body=None, headers=None):
+    """POST con urllib. Un error HTTP también vuelve como _Response (con su cuerpo)."""
+    if json_body is not None:
+        data = json.dumps(json_body).encode("utf-8")
+        content_type = "application/json"
+    elif form is not None:
+        data = urllib.parse.urlencode(form).encode("utf-8")
+        content_type = "application/x-www-form-urlencoded"
+    else:
+        data, content_type = None, None
+    cabeceras = dict(headers or {})
+    if content_type:
+        cabeceras["Content-Type"] = content_type
+    req = urllib.request.Request(url, data=data, headers=cabeceras, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            return _Response(resp.status, resp.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as exc:      # 4xx/5xx: el cuerpo dice qué pasó
+        return _Response(exc.code, exc.read().decode("utf-8", "replace"))
+    except urllib.error.URLError as exc:      # DNS, TLS, sin red…
+        raise CorosMCPError(f"no pude conectar con {url}: {exc.reason}") from exc
+
+
 def _post(url, *, form=None, json_body=None, headers=None):
-    resp = requests.post(url, data=form, json=json_body, headers=headers or {}, timeout=TIMEOUT)
+    resp = _http(url, form=form, json_body=json_body, headers=headers)
     try:
         payload = resp.json()
     except ValueError:

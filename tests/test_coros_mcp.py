@@ -11,7 +11,7 @@ Lo que se cubre, y por qué importa:
 2. Los argumentos de la llamada: se construyen a partir del `inputSchema` que
    declare el servidor, no de un nombre supuesto.
 3. La secuencia HTTP (refresh → initialize → tools/list → tools/call) con un
-   `requests.post` falso: se comprueba el orden, las URLs y los cuerpos.
+   `_http` falso: se comprueba el orden, las URLs y los cuerpos.
 4. La superposición sobre `coros_data.json` y que el correo pinte el sueño.
 """
 
@@ -181,15 +181,14 @@ class TestSecuenciaHTTP(unittest.TestCase):
                 "sleepList": [{"date": yyyymmdd(1), "mainSleepDuration": 26700}]}}},
         }
 
-        def falso_post(url, data=None, json=None, headers=None, timeout=None):
-            clave = f"{url}#{(json or {}).get('method')}" if url.endswith("/mcp") else url
-            self.llamadas.append({"url": url, "form": data, "json": json, "headers": headers})
+        def falso_http(url, form=None, json_body=None, headers=None):
+            clave = f"{url}#{(json_body or {}).get('method')}" if url.endswith("/mcp") else url
+            self.llamadas.append({"url": url, "form": form, "json": json_body, "headers": headers})
             if clave not in self.respuestas:
                 raise AssertionError(f"llamada inesperada: {clave}")
-            respuesta = self.respuestas[clave]
-            return mock.Mock(status_code=200, json=lambda: respuesta, text="")
+            return coros_mcp._Response(200, json.dumps(self.respuestas[clave]))
 
-        parche = mock.patch.object(coros_mcp.requests, "post", side_effect=falso_post)
+        parche = mock.patch.object(coros_mcp, "_http", side_effect=falso_http)
         parche.start()
         self.addCleanup(parche.stop)
 

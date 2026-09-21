@@ -2,8 +2,10 @@
 
 Ejecuta esto UNA VEZ en tu ordenador (no en GitHub Actions):
 
-    pip install requests
-    python scripts/get_coros_mcp_token.py
+    python3 scripts/get_coros_mcp_token.py
+
+No hace falta instalar nada: este script y `coros_mcp.py` usan solo la librería
+estándar de Python (3.8+).
 
 A diferencia de Strava, **no hay que crear ninguna app**: el MCP oficial de
 COROS acepta registro dinámico de clientes, así que el script se registra solo

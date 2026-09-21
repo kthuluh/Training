@@ -34,7 +34,7 @@ Nunca pongas credenciales en el código: para eso están los secretos del paso 4
 2. Anota el **Client ID** y el **Client Secret**.
 3. En tu computadora (no en GitHub), corre:
    ```
-   pip install requests
+   python3 -m pip install requests      # o `pip3 install requests`
    python scripts/get_strava_refresh_token.py
    ```
    Sigue las instrucciones en pantalla. Al final te da tres valores:
@@ -242,11 +242,11 @@ igual (la casilla en `—`).
 **Paso único (en tu ordenador, no en GitHub):**
 
 ```bash
-pip install requests
-python scripts/get_coros_mcp_token.py
+python3 scripts/get_coros_mcp_token.py
 ```
 
-No hay que crear ninguna app: el MCP oficial acepta registro dinámico de
+No hace falta instalar nada: ese script y `scripts/coros_mcp.py` usan solo la
+librería estándar de Python (3.8+). Y no hay que crear ninguna app: el MCP oficial acepta registro dinámico de
 clientes, así que el script se registra solo (cliente público, sin
 client_secret), abre el navegador para que inicies sesión con tu cuenta de
 COROS y te devuelve dos valores → secretos de GitHub:
