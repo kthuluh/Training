@@ -30,6 +30,8 @@ Diagnóstico (la primera vez, o si COROS cambia algo):
 Variables de entorno:
     COROS_MCP_CLIENT_ID       client_id del registro dinámico (paso 1)
     COROS_MCP_REFRESH_TOKEN   refresh token (paso 1)
+    COROS_MCP_ACCESS_TOKEN    si está definido, se usa tal cual y se salta el
+                              refresco (útil para pruebas o tokens de vida larga)
     COROS_MCP_ISSUER          por defecto https://mcp.coros.com (eu/us/cn: mcpeu/mcpus/mcpcn)
     COROS_MCP_URL             por defecto {issuer}/mcp
     COROS_SLEEP_DAYS          noches a pedir (30)
@@ -428,19 +430,31 @@ def parse_sleep(result: dict) -> list[dict]:
 # Orquestación
 # ---------------------------------------------------------------------------
 
-def fetch_sleep(days=None, *, client_id=None, refresh_token=None, issuer=None, mcp_url=None):
-    """Devuelve (noches, nuevo_refresh_token). Lanza CorosMCPError si algo falla."""
+def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=None,
+                issuer=None, mcp_url=None):
+    """Devuelve (noches, nuevo_refresh_token). Lanza CorosMCPError si algo falla.
+
+    `nuevo_refresh_token` es None cuando se entra con un access token directo
+    (parámetro `access_token` o la variable COROS_MCP_ACCESS_TOKEN): en ese
+    camino no se llama a /oauth2/token, así que no hay rotación que avisar.
+    """
     issuer = (issuer or os.environ.get("COROS_MCP_ISSUER") or DEFAULT_ISSUER).rstrip("/")
     mcp_url = mcp_url or os.environ.get("COROS_MCP_URL") or f"{issuer}/mcp"
-    client_id = client_id or os.environ.get("COROS_MCP_CLIENT_ID")
-    refresh_token = refresh_token or os.environ.get("COROS_MCP_REFRESH_TOKEN")
-    if not client_id or not refresh_token:
-        raise CorosMCPError(
-            "faltan COROS_MCP_CLIENT_ID / COROS_MCP_REFRESH_TOKEN "
-            "(genera unos con scripts/get_coros_mcp_token.py)")
+    access = access_token or os.environ.get("COROS_MCP_ACCESS_TOKEN")
+    if access:
+        # Atajo: con un access token válido no hace falta refrescar nada.
+        nuevo_refresh = None
+    else:
+        client_id = client_id or os.environ.get("COROS_MCP_CLIENT_ID")
+        refresh_token = refresh_token or os.environ.get("COROS_MCP_REFRESH_TOKEN")
+        if not client_id or not refresh_token:
+            raise CorosMCPError(
+                "faltan COROS_MCP_CLIENT_ID / COROS_MCP_REFRESH_TOKEN "
+                "(genera unos con scripts/get_coros_mcp_token.py), "
+                "o define COROS_MCP_ACCESS_TOKEN para saltarte el refresco")
+        access, nuevo_refresh = refresh_access_token(client_id, refresh_token, issuer)
     days = int(days or os.environ.get("COROS_SLEEP_DAYS") or 30)
 
-    access, nuevo_refresh = refresh_access_token(client_id, refresh_token, issuer)
     initialize(mcp_url, access)
 
     tools = list_tools(mcp_url, access)
@@ -478,8 +492,10 @@ def main(argv=None):
     mcp_url = os.environ.get("COROS_MCP_URL") or f"{issuer}/mcp"
 
     if "--schema" in argv:
-        access, _ = refresh_access_token(os.environ["COROS_MCP_CLIENT_ID"],
-                                         os.environ["COROS_MCP_REFRESH_TOKEN"], issuer)
+        access = os.environ.get("COROS_MCP_ACCESS_TOKEN")
+        if not access:
+            access, _ = refresh_access_token(os.environ["COROS_MCP_CLIENT_ID"],
+                                             os.environ["COROS_MCP_REFRESH_TOKEN"], issuer)
         initialize(mcp_url, access)
         tools = list_tools(mcp_url, access)
         print(f"{len(tools)} herramientas en {mcp_url}:")
@@ -499,7 +515,7 @@ def main(argv=None):
     print(f"✓ {p} escrito ({len(nights)} noches con sueño)")
     if nights:
         print(f"  última: {nights[-1]['date']} → {nights[-1]['sleep_hours']} h")
-    if nuevo != os.environ.get("COROS_MCP_REFRESH_TOKEN"):
+    if nuevo and nuevo != os.environ.get("COROS_MCP_REFRESH_TOKEN"):
         print("  ⚠ COROS rotó el refresh token: actualiza el secreto COROS_MCP_REFRESH_TOKEN.")
     return 0
 

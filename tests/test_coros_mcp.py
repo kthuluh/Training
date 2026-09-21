@@ -20,6 +20,7 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 import re
 import sys
 import tempfile
@@ -216,9 +217,33 @@ class TestSecuenciaHTTP(unittest.TestCase):
         self.assertEqual(noches, [{"date": iso(1), "sleep_hours": 7.42}])
         self.assertEqual(nuevo_refresh, "RT2")
 
+    def test_access_token_directo_se_salta_el_refresco(self):
+        """COROS_MCP_ACCESS_TOKEN (por parámetro) entra sin llamar a /oauth2/token."""
+        noches, nuevo_refresh = coros_mcp.fetch_sleep(
+            days=30, access_token="AT-DIRECTO",
+            issuer=self.ISSUER, mcp_url=self.MCP)
+
+        # Solo initialize → tools/list → tools/call; ni una llamada de refresco.
+        self.assertEqual([c["url"] for c in self.llamadas], [self.MCP] * 3)
+        self.assertEqual(self.llamadas[0]["headers"]["Authorization"], "Bearer AT-DIRECTO")
+        self.assertEqual(noches, [{"date": iso(1), "sleep_hours": 7.42}])
+        # Sin refresco no hay rotación: nada que avisar en main().
+        self.assertIsNone(nuevo_refresh)
+
+    def test_access_token_por_variable_de_entorno(self):
+        """COROS_MCP_ACCESS_TOKEN definido como env basta, sin client_id ni refresh."""
+        with mock.patch.dict(os.environ, {"COROS_MCP_ACCESS_TOKEN": "AT-ENV"}):
+            noches, nuevo_refresh = coros_mcp.fetch_sleep(
+                days=30, issuer=self.ISSUER, mcp_url=self.MCP)
+        self.assertEqual(noches, [{"date": iso(1), "sleep_hours": 7.42}])
+        self.assertIsNone(nuevo_refresh)
+        self.assertNotIn("/oauth2/token", "".join(c["url"] for c in self.llamadas))
+
     def test_sin_credenciales_no_llama_a_nada(self):
-        with self.assertRaises(coros_mcp.CorosMCPError):
-            coros_mcp.fetch_sleep(days=30, client_id=None, refresh_token=None)
+        limpio = {k: v for k, v in os.environ.items() if not k.startswith("COROS_MCP_")}
+        with mock.patch.dict(os.environ, limpio, clear=True):
+            with self.assertRaises(coros_mcp.CorosMCPError):
+                coros_mcp.fetch_sleep(days=30, client_id=None, refresh_token=None)
         self.assertEqual(self.llamadas, [])
 
     def test_si_el_servidor_no_ofrece_sueño_se_queja_con_la_lista(self):
