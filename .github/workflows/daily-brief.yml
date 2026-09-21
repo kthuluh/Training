@@ -58,6 +58,22 @@ jobs:
           COROS_DAYS: "30"
         run: node --experimental-strip-types scripts/coros_fetch.mjs
 
+      # --- Sueño (API OFICIAL de COROS, mcp.coros.com) ---------------------
+      # La librería de arriba (EvoLab) no tiene horas de sueño; el MCP oficial
+      # sí (`querySleepData`). Escribe coros_sleep.json, que coros_data.load()
+      # superpone sobre coros_data.json.
+      #
+      # `continue-on-error: true`: si el token caduca o COROS cambia algo, el
+      # correo sale igual (la casilla de Sueño en "—") en vez de no salir.
+      - name: Fetch sueño (COROS MCP oficial) → coros_sleep.json
+        continue-on-error: true
+        env:
+          COROS_MCP_CLIENT_ID: ${{ secrets.COROS_MCP_CLIENT_ID }}
+          COROS_MCP_REFRESH_TOKEN: ${{ secrets.COROS_MCP_REFRESH_TOKEN }}
+          # Al correo le bastan las 30 noches de la línea de análisis.
+          COROS_SLEEP_DAYS: "30"
+        run: python scripts/coros_mcp.py
+
       # ---------------------------------------------------------------------
 
       - name: Build and send daily brief

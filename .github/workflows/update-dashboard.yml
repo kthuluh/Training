@@ -58,6 +58,19 @@ jobs:
           COROS_DAYS: "370"
         run: node --experimental-strip-types scripts/coros_fetch.mjs
 
+      # --- Sueño (API OFICIAL de COROS, mcp.coros.com) ---------------------
+      # Mismo mecanismo que en el correo: coros_sleep.json se superpone sobre
+      # coros_data.json, así que el bloque de Hábitos, la línea semanal de
+      # sueño y la tarjeta de 14 días dejan de depender de valores manuales.
+      - name: Fetch sueño (COROS MCP oficial) → coros_sleep.json
+        continue-on-error: true
+        env:
+          COROS_MCP_CLIENT_ID: ${{ secrets.COROS_MCP_CLIENT_ID }}
+          COROS_MCP_REFRESH_TOKEN: ${{ secrets.COROS_MCP_REFRESH_TOKEN }}
+          # Cubre las 12 semanas del histórico + el bloque de 30 noches.
+          COROS_SLEEP_DAYS: "120"
+        run: python scripts/coros_mcp.py
+
       # ---------------------------------------------------------------------
 
       - name: Update dashboard from Strava + Coros

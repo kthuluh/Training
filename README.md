@@ -34,7 +34,7 @@ Nunca pongas credenciales en el código: para eso están los secretos del paso 4
 2. Anota el **Client ID** y el **Client Secret**.
 3. En tu computadora (no en GitHub), corre:
    ```
-   pip install requests
+   python3 -m pip install requests      # o `pip3 install requests`
    python scripts/get_strava_refresh_token.py
    ```
    Sigue las instrucciones en pantalla. Al final te da tres valores:
@@ -53,7 +53,8 @@ Nunca pongas credenciales en el código: para eso están los secretos del paso 4
 ## 3. Configurar los secretos en GitHub
 
 En tu repo: **Settings → Secrets and variables → Actions → New repository
-secret**. Crea estos 6 (los de Coros del paso 4 son 2 más):
+secret**. Crea estos 6 (los de Coros del paso 4 son 2 más, y los del sueño del
+paso 4.6 otros 2):
 
 | Nombre | Valor |
 |---|---|
@@ -63,6 +64,8 @@ secret**. Crea estos 6 (los de Coros del paso 4 son 2 más):
 | `GMAIL_USER` | kthuluh@gmail.com |
 | `GMAIL_APP_PASSWORD` | del paso 2 |
 | `EMAIL_TO` | kthuluh@gmail.com |
+| `COROS_MCP_CLIENT_ID` | del paso 4.6 (sueño, API oficial de COROS) |
+| `COROS_MCP_REFRESH_TOKEN` | del paso 4.6 (sueño, API oficial de COROS) |
 
 ## 4. Coros: instalar y activar
 
@@ -161,17 +164,12 @@ Lo que usa el script es `client.getAnalyse({startDate, endDate})` (endpoint
   acepta el valor en miles, `14.2` → 14.200). Si no viene, `steps` queda `null`
   y la tarjeta de pasos del dashboard se queda como esté (manual).
 
-**Horas de sueño: no.** `@pinta365/coros` 0.0.1 no tiene endpoint de sueño, solo
-HRV nocturna. El script aun así lo intenta: la respuesta de Coros trae más
-campos de los que la librería tipa, así que busca claves sueltas
+**Horas de sueño: por esta vía, no.** `@pinta365/coros` 0.0.1 no tiene endpoint
+de sueño, solo HRV nocturna. El script aun así lo intenta: la respuesta de Coros
+trae más campos de los que la librería tipa, así que busca claves sueltas
 (`sleepDuration`, `totalSleep`, `sleepTime`…) y, si aparecen, las convierte a
-horas. Si en tu cuenta no vienen, `sleep_hours` queda `null` y:
-
-* el correo muestra `—` en la casilla de Sueño y **no pinta** la línea de
-  análisis del sueño,
-* la tarjeta de sueño, la línea "Sueño" del gráfico semanal y el bloque
-  *Análisis del sueño* de Hábitos se quedan como estén (manuales), sin que el
-  bot las toque.
+horas. Si en tu cuenta no vienen, `sleep_hours` queda `null` en
+`coros_data.json` — y entonces entra el MCP oficial (4.6), que sí las trae.
 
 Para saber si tu cuenta los tiene: `COROS_DEBUG=1 node ... coros_fetch.mjs` y
 mira la lista de claves. Con `COROS_DEBUG=1` el script además imprime qué claves
@@ -225,6 +223,59 @@ a mano con solo `resting_hr`/`sleep_hours`/`hrv` si prefieres no usar Coros).
 Si `coros_data.json` no existe, no pasa nada: ambos scripts siguen su camino
 con Strava. **No se sube al repo** (está en `.gitignore`): son datos de salud
 efímeros que se regeneran en cada workflow.
+
+### 4.6 Sueño: el MCP **oficial** de COROS (mcp.coros.com)
+
+El sueño no estaba en EvoLab, y la única otra puerta era la API **móvil** de
+Coros (`apieu.coros.com`), cuyo login desloguea la app del teléfono: inusable en
+un cron. Pero COROS publicó su **MCP oficial** (`https://mcp.coros.com/mcp`,
+OAuth con PKCE), y entre sus herramientas está `querySleepData`: *"sleep score,
+main sleep duration, deep/light/REM ratios, wakefulness, sleep window and nap
+information"*. Es API oficial, no desloguea nada y se refresca con un refresh
+token igual que Strava.
+
+`scripts/coros_mcp.py` hace eso cada madrugada y escribe `coros_sleep.json`,
+que `coros_data.load()` superpone sobre `coros_data.json`. O sea: el correo y el
+dashboard se enteran **sin tocar su código**, y si el paso falla el correo sale
+igual (la casilla en `—`).
+
+**Paso único (en tu ordenador, no en GitHub):**
+
+```bash
+python3 scripts/get_coros_mcp_token.py
+```
+
+No hace falta instalar nada: ese script y `scripts/coros_mcp.py` usan solo la
+librería estándar de Python (3.8+). Y no hay que crear ninguna app: el MCP oficial acepta registro dinámico de
+clientes, así que el script se registra solo (cliente público, sin
+client_secret), abre el navegador para que inicies sesión con tu cuenta de
+COROS y te devuelve dos valores → secretos de GitHub:
+
+| Nombre | Valor |
+|---|---|
+| `COROS_MCP_CLIENT_ID` | el `client_id` del registro |
+| `COROS_MCP_REFRESH_TOKEN` | el refresh token (el workflow lo refresca solo) |
+
+**Variables de entorno que entiende `scripts/coros_mcp.py`:**
+
+| Variable | Para qué |
+|---|---|
+| `COROS_SLEEP_DAYS` | noches a pedir (`30` en el correo, `120` en el dashboard) |
+| `COROS_SLEEP_PATH` | dónde escribir (`coros_sleep.json`) |
+| `COROS_MCP_ISSUER` | `https://mcp.coros.com` por defecto; `mcpeu`/`mcpus`/`mcpcn` para fijar región |
+| `COROS_MCP_URL` | `{issuer}/mcp` por defecto |
+
+**Si COROS cambia algo**, el script se diagnostica solo:
+
+```bash
+python scripts/coros_mcp.py --schema   # herramientas + inputSchema de querySleepData
+python scripts/coros_mcp.py --dump     # la respuesta cruda ya parseada
+```
+
+Los argumentos de la llamada no están escritos a mano: se construyen leyendo el
+`inputSchema` que declara el servidor (`scripts/coros_mcp.py:build_arguments`), y
+el parseo acepta segundos, minutos u horas y fechas `YYYYMMDD` o ISO, porque
+COROS no documenta la forma exacta de la respuesta.
 
 ## 5. Probarlo
 
@@ -287,9 +338,12 @@ Tres reglas que sigue el script (y que valen para todas las pestañas):
 
 * Peso, edad y altura (no hay conector a una báscula; Coros sigue con 70 kg).
 * Las calorías y macros de la pestaña Dieta, que dependen del peso.
-* Sueño profundo y fases (ligero / REM): exigen la API **móvil** de Coros, que
-  pide claves sacadas del APK y desloguea el reloj del teléfono. El porqué
-  completo, en 4.4; el JSON lo declara con `"sleep_phases": false`.
+* Las **horas de sueño ya no**: vienen del MCP oficial de COROS (4.6) en cuanto
+  configures `COROS_MCP_CLIENT_ID` / `COROS_MCP_REFRESH_TOKEN`. Sin esos
+  secretos, el bloque se queda con el último valor manual, como siempre.
+* Sueño profundo y fases (ligero / REM): `querySleepData` las devuelve, pero
+  todavía no se pintan en ningún sitio; haría falta decidir dónde. El JSON de
+  EvoLab sigue declarando `"sleep_phases": false` porque por ahí no salen.
 * El **objetivo** de sueño (7,5 h por defecto): es tuyo, no un dato que se
   descargue. Se cambia con `SLEEP_TARGET_HOURS` sin tocar el código.
 * Las tablas del plan (bloques 10K/21K) y las 3 recomendaciones fijas.
@@ -326,6 +380,13 @@ Cubren que todos los marcadores existan (y una sola vez) en el HTML, que con
 datos los números salgan bien, que **sin datos no se toque nada**, que dos
 pasadas seguidas den el mismo HTML y que `PLAN_START`/`HR_REST`/`HR_MAX`/
 `SLEEP_TARGET_HOURS` sigan cuadrando con `scripts/daily_brief.py`.
+
+`tests/test_coros_mcp.py` cubre el sueño oficial: el parseo tolerante de
+`querySleepData` (segundos/minutos/horas, fechas `YYYYMMDD` o ISO, listas
+anidadas), que los argumentos salgan del `inputSchema` del servidor, la
+secuencia HTTP completa (refresh → initialize → tools/list → tools/call) con un
+`requests.post` falso, la superposición sobre `coros_data.json` y que el correo
+pinte la casilla y la línea de 30 noches.
 
 También cubren el bloque de sueño (media, deuda, tendencia 7 vs 7 y los tres
 veredictos según el objetivo), que con `sleep_hours` a `null` el bloque manual no
@@ -367,6 +428,9 @@ Para probarlo ahora mismo sin esperar al cron: pestaña **Actions** →
 | El dashboard no cambia nada | no hay `coros_data.json` (mira el log del paso de Coros) o los datos no son de esta semana |
 | `⚠ <sección> falló: …` en el log de "Update dashboard" | esa sección se quedó con los valores anteriores y el resto sí se actualizó; el mensaje dice qué pasó (lo normal: marcador borrado del HTML al editarlo a mano) |
 | La tarjeta de pasos o la de sueño no se actualizan | Coros no devuelve ese campo: `COROS_DEBUG=1 node --experimental-strip-types scripts/coros_fetch.mjs` y mira las claves reales (`STEPS_KEYS` / `SLEEP_KEYS`) |
+| `✗ COROS MCP: faltan COROS_MCP_CLIENT_ID / COROS_MCP_REFRESH_TOKEN` | no has hecho el paso 4.6; el correo sale igual, con la casilla de Sueño en `—` |
+| Sueño en `—` con los secretos ya puestos | mira el paso "Fetch sueño (COROS MCP oficial)" del log y, en local, `python scripts/coros_mcp.py --schema` y `--dump`: dicen qué herramientas ofrece el servidor y qué forma tiene la respuesta |
+| `token refresh failed` (sueño) | el refresh token caducó o COROS lo rotó: repite `python scripts/get_coros_mcp_token.py` y actualiza `COROS_MCP_REFRESH_TOKEN`. Si lo rota, el script lo avisa en el log |
 | Los tests fallan al añadir un marcador al HTML | falta darlo de alta en la lista `HTML_MARKERS`/`JS_MARKERS` de `tests/test_dashboard.py` |
 
 ## 9. Ficheros
@@ -375,7 +439,9 @@ Para probarlo ahora mismo sin esperar al cron: pestaña **Actions** →
 .github/workflows/daily-brief.yml      correo diario (Strava + Coros)
 .github/workflows/update-dashboard.yml dashboard diario (Strava + Coros)
 .github/workflows/tests.yml            tests del dashboard (sin secretos)
-scripts/coros_fetch.mjs    Coros → coros_data.json   (Node 22.6+ / Deno)
+scripts/coros_fetch.mjs    Coros (EvoLab) → coros_data.json   (Node 22.6+ / Deno)
+scripts/coros_mcp.py       COROS MCP oficial → coros_sleep.json (sueño)
+scripts/get_coros_mcp_token.py  una vez: client_id + refresh token del MCP
 scripts/coros_data.py      lector compartido del JSON (tolerante a fallos)
 scripts/dashboard_stats.py cálculos puros del dashboard (semanal, mensual,
                            tendencias, carreras, zonas Karvonen…) — testeable
@@ -383,6 +449,7 @@ scripts/daily_brief.py     plan + dieta + Strava + Coros → correo
 scripts/update_dashboard.py  reescribe los bloques AUTO: del HTML (todas las pestañas)
 dashboard/dashboard-kthuluh.html  tu panel (GitHub Pages)
 tests/test_dashboard.py    tests del dashboard (fixtures, sin red)
+tests/test_coros_mcp.py    tests del sueño oficial (fixtures, sin red)
 .github/workflows/tests.yml  corre esos tests en cada push y PR
 package.json / .npmrc      dependencias de JSR para Node
 requirements.txt           requests, para Strava
