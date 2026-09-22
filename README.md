@@ -311,15 +311,38 @@ Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 | Encabezado / pie | `UPDATED_DATE`, `FOOTER_INFO` | Strava + Coros | fecha y cobertura real de los datos |
 | Resumen general | `HERO_RHR`, `HERO_RATIO`, `RHR_CARD`, `RHR_CARD_SUB`, `HRV_CARD`, `HRV_CARD_SUB`, `STEPS_CARD`, `STEPS_CARD_SUB`, `SLEEP_14D_AVG`, `SLEEP_14D_SUB`, `LOAD_CAPTION`, `RHR30_LABELS`, `RHR30_DATA`, `LOAD14_LABELS`, `LOAD14_SHORT`, `LOAD14_LONG` | Coros | tarjetas del hero y de "Estado actual", gráficos de FC reposo (30 d) y carga (14 d) |
 | Entrenamiento | `PLAN_STATUS` | — | en qué semana de las 18 estás |
-| Entrenamiento | `ENTRENO_PB`, `ENTRENO_LAST4W`, `ENTRENO_VOL_NOTE`, `ENTRENO_STRENGTH_NOTE`, `CHARTVOL_LABELS`, `CHARTVOL_DATA`, `ZONES_META`, `ZONES_ROWS` | Strava | mejores marcas 10K/21K de los últimos 12 meses, resumen de las últimas 4 semanas, gráfico de volumen (8 semanas), tabla de zonas Karvonen y aviso de fuerza |
+| Entrenamiento | `ENTRENO_PB`, `ENTRENO_LAST4W`, `ENTRENO_VOL_NOTE`, `ENTRENO_STRENGTH_NOTE`, `CHARTVOL_LABELS`, `CHARTVOL_RUN`, `CHARTVOL_WALK`, `ZONES_META`, `ZONES_ROWS` | Strava | mejores marcas 10K/21K de los últimos 12 meses, resumen de las últimas 4 semanas, gráfico de volumen (8 semanas, carrera + caminatas apiladas), tabla de zonas Karvonen y aviso de fuerza |
 | Dieta | `DIETA_ACTIVITY`, `DIETA_CONTEXT` | Coros + Strava | pasos reales de Coros y contexto de la semana (km, sesiones, ratio de carga) |
 | Hábitos | `HABIT_01_BODY`, `HABIT_02_BODY`, `HABIT_03_BODY`, `HABIT_05_BODY` | Strava + Coros | última sesión de fuerza, noches más cortas, salidas que se pasan del techo de Z2 y rampa de volumen |
 | Hábitos | `SLEEP_TITLE`, `SLEEP_CARDS`, `SLEEP_VERDICT`, `SLEEP_NOTES`, `SLEEP30_LABELS`, `SLEEP30_DATA`, `SLEEP30_TARGET` | Coros | bloque *Análisis del sueño* al final de la pestaña: 4 tarjetas (media, noches en objetivo, deuda y tendencia 7 vs 7), gráfico de las últimas 30 noches contra el objetivo, veredicto y notas con lo que Coros no da |
 | Historial | `TREND_VOL_CARD`, `TREND_RHR_CARD`, `TREND_SLEEP_CARD`, `TREND_VERDICT` | Strava + Coros | las 4 últimas semanas completas frente a las 4 anteriores |
 | Historial | `RACES` | Strava | carreras del año (`workout_type = Race`) |
-| Historial | `MONTHLY_LABELS`, `MONTHLY_VOL`, `MONTHLY_RHR`, `MONTHLY_YEAR`, `MONTHLY_VOL_YEAR`, `MONTHLY_RHR_YEAR`, `MONTHLY_RANGE_TITLE`, `MONTHLY_CARDS` | Strava + Coros | gráficos mensuales (volumen y FC reposo) y tarjetas de mes |
-| Historial | `WEEKLY_LABELS`, `WEEKLY_VOL`, `WEEKLY_MONDAYS`, `WEEKLY_RHR`, `WEEKLY_SLEEP`, `WEEKLY_CARDS`, `CURRENT_WEEK`, `HIST_COVERAGE_NOTE` | Strava + Coros | 12 semanas completas + la semana en curso, con sueño y FC reposo si Coros los trae |
+| Historial | `MONTHLY_LABELS`, `MONTHLY_VOL_RUN`, `MONTHLY_VOL_WALK`, `MONTHLY_RHR`, `MONTHLY_YEAR`, `MONTHLY_VOL_YEAR`, `MONTHLY_RHR_YEAR`, `MONTHLY_RANGE_TITLE`, `MONTHLY_CARDS` | Strava + Coros | gráficos mensuales (volumen a pie apilado y FC reposo) y tarjetas de mes |
+| Historial | `WEEKLY_LABELS`, `WEEKLY_VOL_RUN`, `WEEKLY_VOL_WALK`, `WEEKLY_MONDAYS`, `WEEKLY_RHR`, `WEEKLY_SLEEP`, `WEEKLY_CARDS`, `CURRENT_WEEK`, `HIST_COVERAGE_NOTE` | Strava + Coros | 12 semanas completas + la semana en curso, con sueño y FC reposo si Coros los trae |
 | Recomendaciones | `RECOS` | Strava + Coros | la lista entera, generada por reglas |
+
+### 7.0 Qué cuenta como volumen
+
+El volumen (semanal, mensual, la tarjeta de tendencia, el contexto de la dieta,
+la rampa de Hábitos y el correo diario) es **todo lo que haces a pie**, no solo
+las carreras:
+
+| Cuenta | Tipos de Strava |
+|---|---|
+| Carrera | `Run`, `TrailRun`, `VirtualRun` |
+| Caminatas | `Walk`, `Hike` |
+
+En los gráficos salen **apilados**: la barra entera es el volumen de la semana y
+el tramo más claro es lo que caminaste, así se ve de un vistazo cuánto es correr.
+Lo que registra kilómetros pero no es andar (`Ride`, `Swim`, `Rowing`,
+`Elliptical`…) queda **fuera** a propósito: no es carga de carrera y mezclarlo
+inflaría el volumen del plan de 10K/21K.
+
+Si quieres cambiarlo, todo vive en una línea: `FOOT_TYPES` (y `RUN_TYPES` /
+`WALK_TYPES`) en `scripts/dashboard_stats.py`. Añade ahí `"ride"` y la bici
+empezará a contar. Lo que sigue siendo solo de carrera, y por qué: las mejores
+marcas 10K/21K, el nº de salidas/semana, la tirada larga, el conteo de fuerza y
+el aviso de "salidas por encima del techo de Z2".
 
 Tres reglas que sigue el script (y que valen para todas las pestañas):
 
