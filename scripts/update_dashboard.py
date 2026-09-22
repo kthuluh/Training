@@ -29,6 +29,12 @@ Igual con Strava: si una sección no tiene datos, se conserva lo que ya había e
 el HTML (nunca se inventa un valor ni se escribe un 0 donde no hay dato). Y cada
 sección va aislada: si una falla, las demás se actualizan igual.
 
+Volumen: cuenta **todo lo que se hace a pie** — carreras (Run/TrailRun/VirtualRun)
+y caminatas o senderismo (Walk/Hike) —, no solo las carreras: en el gráfico de la
+pestaña Entrenamiento salen apiladas (la barra entera es el volumen de la semana).
+Lo que registra kilómetros pero no es andar (bici, natación, remo, elíptica…)
+queda fuera del volumen a propósito: se cambia en `stats.FOOT_TYPES`.
+
 Uso:
   python scripts/update_dashboard.py               # Strava + Coros (lo que hace el workflow)
   python scripts/update_dashboard.py --only-coros  # solo la parte Coros (sin red de Strava)
@@ -297,6 +303,29 @@ def delta_span(cur, prev, good_up=True, kind="num", unit=""):
     cls = "up" if (d > 0) == good_up else "down"
     arrow = "▲" if d > 0 else "▼"
     return f'<span class="delta {cls}">{arrow}{txt}{unit}</span>'
+
+
+def week_sessions_label(sess, compact=False):
+    """Cómo se cuentan las sesiones de una semana: carreras + caminatas + fuerza.
+
+    compact=True → '2 + 1 caminata + 2 fuerza' (las tarjetas semana a semana);
+    si no → '2 salidas + 1 caminata + 2 fuerza' (frases, como el contexto de la
+    dieta). Las caminatas cuentan como sesión porque suman volumen, aunque no
+    sean carrera.
+    """
+    bits = []
+    if sess.get("runs"):
+        bits.append(str(sess["runs"]) if compact
+                    else f"{sess['runs']} salida" + ("s" if sess["runs"] > 1 else ""))
+    if sess.get("walks"):
+        bits.append(f"{sess['walks']} caminata" + ("s" if sess["walks"] > 1 else ""))
+    if sess.get("strength"):
+        bits.append(f"{sess['strength']} fuerza")
+    if not bits:
+        return "" if compact else "ninguna sesión"
+    if compact:
+        return bits[0] + "".join(f" + {b}" for b in bits[1:])
+    return " + ".join(bits)
 
 
 def fmt_miles(v):
@@ -593,7 +622,8 @@ def apply_entreno(html, acts, coros, today, notes):
     # 2) Últimas 4 semanas: sesiones/semana y tirada larga más larga
     if acts and has_marker(html, "ENTRENO_LAST4W"):
         mondays = stats.recent_mondays(today, 4)
-        sessions = [stats.weekly_sessions(acts, m)["runs"] for m in mondays]
+        weeks = [stats.weekly_sessions(acts, m) for m in mondays]
+        sessions = [w["runs"] for w in weeks]
         if any(sessions):
             mean_runs = sum(sessions) / len(sessions)
             in_window = [a for a in stats.runs(acts) if a["date"] >= mondays[0]]
@@ -603,6 +633,11 @@ def apply_entreno(html, acts, coros, today, notes):
                 txt += f", tirada larga hasta {stats.fmt_es(longest['km'], 1)} km"
                 if longest["elevation_m"]:
                     txt += f" con desnivel (hasta {longest['elevation_m']:.0f} m)"
+            n_walks = sum(w["walks"] for w in weeks)
+            walk_km = sum(w["walk_km"] for w in weeks)
+            if n_walks:
+                txt += (f", más {stats.fmt_es(n_walks / len(weeks), 1)} caminatas/semana "
+                        f"({stats.fmt_es(walk_km / len(weeks), 1)} km/semana que también suman volumen)")
             html = set_html(html, "ENTRENO_LAST4W", txt + ".", notes, "últimas 4 semanas: resumen actualizado")
 
     # 3) Nota de rampa de volumen
@@ -610,19 +645,22 @@ def apply_entreno(html, acts, coros, today, notes):
     if ramp and has_marker(html, "ENTRENO_VOL_NOTE"):
         if ramp["trough_km"] is not None and ramp["peak_km"] > 0:
             pct = f" (+{ramp['pct']*100:.0f}%)" if ramp["pct"] else ""
-            txt = (f"El volumen semanal ha subido rápido: de {stats.fmt_es(ramp['trough_km'], 1)} km "
+            txt = (f"El volumen semanal (carrera + caminatas) ha subido rápido: de "
+                   f"{stats.fmt_es(ramp['trough_km'], 1)} km "
                    f"({stats.fmt_week(ramp['trough_monday'])}) a {stats.fmt_es(ramp['peak_km'], 1)} km "
                    f"({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct}.")
             html = set_html(html, "ENTRENO_VOL_NOTE", txt, notes, "nota de volumen: actualizada")
 
-    # 4) Gráfico de volumen semanal (barras) de la pestaña Entrenamiento
+    # 4) Gráfico de volumen semanal (barras apiladas) de la pestaña Entrenamiento
     if acts and has_marker(html, "CHARTVOL_LABELS", marker_html=False):
         mondays = stats.recent_mondays(today, CHARTVOL_WEEKS, include_current=True)
         this_monday = stats.week_start(today)
         labels = [stats.week_label(m) + ("*" if m == this_monday else "") for m in mondays]
-        data = [stats.weekly_km(acts, m) for m in mondays]
+        _, run_km, walk_km = stats.weekly_km_series(acts, mondays)
         html = set_js(html, "CHARTVOL_LABELS", js_list(labels, quote=True))
-        html = set_js(html, "CHARTVOL_DATA", js_list(data), notes, f"gráfico de volumen: {CHARTVOL_WEEKS} semanas")
+        html = set_js(html, "CHARTVOL_RUN", js_list(run_km))
+        html = set_js(html, "CHARTVOL_WALK", js_list(walk_km), notes,
+                      f"gráfico de volumen: {CHARTVOL_WEEKS} semanas (carrera + caminatas)")
 
     # 5) Zonas Karvonen (opcionalmente con la FC reposo real de Coros)
     hr_rest, from_coros = hr_rest_for_zones(coros)
@@ -683,7 +721,12 @@ def apply_dieta(html, acts, coros, today, notes):
         if acts:
             this_week = stats.weekly_sessions(acts, stats.week_start(today))
             week_km = stats.weekly_km(acts, stats.week_start(today))
-            bits.append(f"esta semana: {stats.fmt_es(week_km, 1)} km en {this_week['runs']} salidas")
+            # El volumen cuenta todo lo que sea andar: carreras y caminatas.
+            detalle = ""
+            if this_week["walk_km"] > 0:
+                detalle = f" ({stats.fmt_es(this_week['run_km'], 1)} de carrera)"
+            bits.append(f"esta semana: {stats.fmt_es(week_km, 1)} km{detalle} "
+                        f"en {week_sessions_label(this_week)}")
             if any(km4):
                 bits.append(f"media de las 4 semanas anteriores: {stats.fmt_es(sum(km4)/len(km4), 1)} km/semana")
         ratio_coros = stats.as_number((coros or {}).get("latest", {}).get("load_ratio")) if coros else None
@@ -758,8 +801,9 @@ def apply_habitos(html, acts, coros, today, notes):
     if ramp and ramp["trough_km"] is not None and has_marker(html, "HABIT_05_BODY"):
         pct = f" (+{ramp['pct']*100:.0f}%)" if ramp["pct"] else ""
         txt = (f"Pasaste de {stats.fmt_es(ramp['trough_km'], 1)} km ({stats.fmt_week(ramp['trough_monday'])}) a "
-               f"{stats.fmt_es(ramp['peak_km'], 1)} km ({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct}. "
-               f"A partir de aquí, no subas más de un 10% de una semana a otra salvo semanas de descarga.")
+               f"{stats.fmt_es(ramp['peak_km'], 1)} km ({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct} "
+               f"(contando carrera y caminatas). A partir de aquí, no subas más de un 10% de una semana a otra "
+               f"salvo semanas de descarga.")
         html = set_html(html, "HABIT_05_BODY", txt, notes, "hábitos 05: rampa de volumen actualizada")
 
     return html
@@ -1023,14 +1067,22 @@ def apply_historial(html, acts, coros, today, notes):
         pct = None
         if t["vol"]["prev"]:
             pct = (t["vol"]["now"] - t["vol"]["prev"]) / t["vol"]["prev"] * 100
-        card = (f'<div class="card">\n        <h3>Volumen de carrera</h3>\n'
+        # Volumen a pie: carrera + caminatas, con el desglose de cuánto es correr.
+        run_now = t.get("vol_run", {}).get("now")
+        desglose = ""
+        if run_now is not None and t["vol"]["now"] and abs(run_now - t["vol"]["now"]) >= 0.05:
+            desglose = (f' · {stats.fmt_es(run_now, 1)} km de carrera y '
+                        f'{stats.fmt_es(t["vol"]["now"] - run_now, 1)} km caminando de media')
+        card = (f'<div class="card">\n        <h3>Volumen a pie</h3>\n'
                 f'        <div class="big">{stats.fmt_es(t["vol"]["now"], 1)} <span style="font-size:16px;">km/sem</span> '
                 f'{delta_span(pct, 0, kind="pct")}</div>\n'
-                f'        <div class="sub">Media de las últimas 4 semanas ({rng_now})')
+                f'        <div class="sub">Media de las últimas 4 semanas ({rng_now}), carrera + caminatas')
         if t["vol"]["prev"] is not None:
-            card += f' frente a las 4 anteriores ({rng_prev}, {stats.fmt_es(t["vol"]["prev"], 1)} km/sem).'
+            card += f', frente a las 4 anteriores ({rng_prev}, {stats.fmt_es(t["vol"]["prev"], 1)} km/sem).'
         else:
             card += "."
+        if desglose:
+            card += desglose + "."
         card += '</div>\n      </div>'
         html = set_html(html, "TREND_VOL_CARD", card, notes, "historial: tarjeta de volumen")
 
@@ -1108,7 +1160,8 @@ def apply_historial(html, acts, coros, today, notes):
     if acts:
         year = today.year
         months = list(range(1, today.month + 1))
-        vol = stats.month_volume(acts, year)
+        vol_split = stats.month_volume_split(acts, year)
+        vol = {m: v["km"] for m, v in vol_split.items()}
         manual_year = parse_js_array(get_marked(html, marker_html=False, marker="MONTHLY_YEAR"))
         manual_rhr = [v for v in parse_js_array(get_marked(html, marker_html=False, marker="MONTHLY_RHR"))]
         coros_rhr = stats.coros_month_rhr(coros, year) if coros else {}
@@ -1116,7 +1169,10 @@ def apply_historial(html, acts, coros, today, notes):
         if any(m in vol for m in months):
             html = set_js(html, "MONTHLY_LABELS",
                           js_list([f"{MESES[m-1]}{'*' if m == today.month else ''}" for m in months], quote=True))
-            html = set_js(html, "MONTHLY_VOL", js_list([vol.get(m) or 0.0 for m in months]), notes, "historial: barras mensuales")
+            # Barras apiladas: carrera + caminatas (la altura total es el volumen)
+            html = set_js(html, "MONTHLY_VOL_RUN", js_list([(vol_split.get(m) or {}).get("run_km") or 0.0 for m in months]))
+            html = set_js(html, "MONTHLY_VOL_WALK", js_list([(vol_split.get(m) or {}).get("walk_km") or 0.0 for m in months]),
+                          notes, "historial: barras mensuales (carrera + caminatas)")
             html = set_js(html, "MONTHLY_YEAR", str(year))
             html = set_html(html, "MONTHLY_VOL_YEAR", str(year))
             html = set_html(html, "MONTHLY_RHR_YEAR", str(year))
@@ -1146,7 +1202,7 @@ def apply_historial(html, acts, coros, today, notes):
                 sess = stats.month_sessions(acts, year).get(m, {})
                 race = next((r for r in stats.races(acts, year=year) if r["date"].month == m), None)
                 coros_m = coros_rhr.get(m)
-                if km is None and not sess.get("runs"):
+                if km is None and not sess.get("runs") and not sess.get("walks"):
                     # Sin dato en Strava: se conserva la tarjeta manual de ese mes
                     if m in manual_months:
                         cards.append(manual_months[m])
@@ -1154,6 +1210,10 @@ def apply_historial(html, acts, coros, today, notes):
                 parts = []
                 if sess.get("runs"):
                     parts.append(f"{sess['runs']} salida" + ("s" if sess["runs"] > 1 else ""))
+                if sess.get("walks"):
+                    walk_km = (vol_split.get(m) or {}).get("walk_km") or 0.0
+                    parts.append(f"{sess['walks']} caminata" + ("s" if sess["walks"] > 1 else "")
+                                 + f" ({stats.fmt_es(walk_km, 1)} km)")
                 if sess.get("strength"):
                     parts.append(f"{sess['strength']} de fuerza")
                 if coros_m:
@@ -1172,10 +1232,11 @@ def apply_historial(html, acts, coros, today, notes):
     if acts:
         mondays = stats.recent_mondays(today, MAX_WEEKS_IN_CHART, include_current=True)
         this_monday = stats.week_start(today)
-        vol_values = [stats.weekly_km(acts, m) for m in mondays]
+        _, run_values, walk_values = stats.weekly_km_series(acts, mondays)
         labels = [stats.week_label(m) + ("*" if m == this_monday else "") for m in mondays]
         html = set_js(html, "WEEKLY_LABELS", js_list(labels, quote=True))
-        html = set_js(html, "WEEKLY_VOL", js_list(vol_values))
+        html = set_js(html, "WEEKLY_VOL_RUN", js_list(run_values))
+        html = set_js(html, "WEEKLY_VOL_WALK", js_list(walk_values))
         html = set_js(html, "WEEKLY_MONDAYS", js_list([m.isoformat() for m in mondays], quote=True))
         notes.append(f"gráfico semanal: {MAX_WEEKS_IN_CHART} semanas")
         mondays_iso = [m.isoformat() for m in mondays]
@@ -1207,19 +1268,11 @@ def apply_historial(html, acts, coros, today, notes):
             if prev_rhr is None:
                 prev_rhr = (manual_cards.get(prev_iso) or {}).get("resting_hr")
 
-            if not sess["runs"] and not sess["strength"] and sleep is None and rhr is None:
+            if (not sess["runs"] and not sess["strength"] and not sess["walks"]
+                    and sleep is None and rhr is None):
                 continue  # semana sin nada que contar
 
-            session_bits = []
-            if sess["runs"]:
-                session_bits.append(str(sess["runs"]))
-            elif km == 0:
-                session_bits.append("0")
-            if sess["strength"]:
-                session_bits.append(f"{sess['strength']} fuerza" if not sess["runs"] else f"+ {sess['strength']} fuerza")
-            if sess["walks"]:
-                session_bits.append(f"+ {sess['walks']} caminata" + ("s" if sess["walks"] > 1 else ""))
-            sessions_txt = " ".join(session_bits) or "0"
+            sessions_txt = week_sessions_label(sess, compact=True) or "0"
             if km and km == max_km:
                 sessions_txt += " — pico del periodo"
 
@@ -1229,10 +1282,13 @@ def apply_historial(html, acts, coros, today, notes):
                        if rhr is not None else "—")
             partial = ' partial' if m == stats.week_start(today) else ''
             km_txt = f"{stats.fmt_es(km, 1)} km"
+            # Si esa semana hay caminatas, se dice cuánto del total es correr
+            if sess["walk_km"] > 0:
+                km_txt += f' <i style="font-size:10px;opacity:.7">({stats.fmt_es(sess["run_km"], 1)} carrera)</i>'
             km_delta = delta_span(km, prev_km, kind="num") if i else ""
             cards.append(
                 f'<div class="wcard{partial}"><div class="wk-lbl">{stats.week_label(m)}</div>\n'
-                f'        <div class="metric"><span>Carrera</span><span class="v">'
+                f'        <div class="metric"><span>Volumen</span><span class="v">'
                 f'{km_txt + (" " + km_delta if km_delta else "")}</span></div>\n'
                 f'        <div class="metric"><span>Sesiones</span><span class="v">{sessions_txt}</span></div>\n'
                 f'        <div class="metric"><span>Sueño</span><span class="v">{sleep_txt}</span></div>\n'
@@ -1247,8 +1303,13 @@ def apply_historial(html, acts, coros, today, notes):
     return html, mondays_iso
 
 
-def build_current_week_card(this_week_monday, this_week_km, this_week_sessions, coros_week=None, has_coros=False):
-    """Tarjeta de la semana en curso; con sueño/FC reposo reales si los hay."""
+def build_current_week_card(this_week_monday, this_week_km, this_week_sessions, coros_week=None,
+                            has_coros=False, run_km=None):
+    """Tarjeta de la semana en curso; con sueño/FC reposo reales si los hay.
+
+    `this_week_km` es el volumen a pie (carrera + caminatas); si `run_km` llega
+    y hay caminatas, se desglosa cuánto de ese total es correr.
+    """
     label = stats.week_label(this_week_monday) + " · en curso"
     coros_week = coros_week or {}
     sleep = stats.as_number(coros_week.get("sleep_hours"))
@@ -1269,9 +1330,13 @@ def build_current_week_card(this_week_monday, this_week_km, this_week_sessions, 
     sleep_val = fmt_hours_compact(sleep) if sleep is not None else "—"
     rhr_val = f"{round(rhr)} bpm" if rhr is not None else "—"
 
+    vol_val = f"{stats.fmt_es(this_week_km, 1)} km"
+    if run_km is not None and abs(run_km - this_week_km) >= 0.05:
+        vol_val += f' <i style="font-size:10px;opacity:.7">({stats.fmt_es(run_km, 1)} carrera)</i>'
+
     return (
         f'''<div class="wcard partial"><div class="wk-lbl">{label}</div>
-        <div class="metric"><span>Carrera</span><span class="v">{stats.fmt_es(this_week_km, 1)} km</span></div>
+        <div class="metric"><span>Volumen</span><span class="v">{vol_val}</span></div>
         <div class="metric"><span>Sesiones</span><span class="v">{this_week_sessions}</span></div>
         {metric("Sueño", sleep_val, sleep is not None)}
         {metric("FC reposo", rhr_val, rhr is not None)}
@@ -1431,12 +1496,15 @@ def main():
     else:
         acts = load_activities(today)
         print(f"· Strava: {len(acts)} actividades (últimos {STRAVA_HISTORY_DAYS} días), "
-              f"{len(stats.runs(acts))} de carrera.")
+              f"{len(stats.foot_activities(acts))} con kilómetros a pie "
+              f"({len(stats.runs(acts))} de carrera, {len(stats.walks(acts))} caminando).")
 
         this_monday = stats.week_start(today)
         this_week = stats.weekly_sessions(acts, this_monday)
         month_km = sum(v for m, v in stats.month_volume(acts, today.year).items() if m == today.month)
-        print(f"· Semana en curso: {this_week['km']} km / {this_week['runs']} salidas · mes {month_km:.1f} km.")
+        caminando = (f" + {this_week['walk_km']} caminando" if this_week["walk_km"] else "")
+        print(f"· Semana en curso: {this_week['km']} km a pie ({this_week['run_km']} de carrera"
+              f"{caminando}) / {this_week['runs']} salidas · mes {month_km:.1f} km.")
 
         html = safe(html, "encabezado/pie", lambda h: apply_header_footer(h, acts, coros, today, notes), notes)
         html = safe(html, "Resumen (Coros)", lambda h: apply_coros(h, coros, today, notes), notes)
@@ -1453,8 +1521,10 @@ def main():
         # actividades no sabemos si es descanso o un fallo de la API)
         if acts and has_marker(html, "CURRENT_WEEK"):
             coros_week = stats.coros_weekly_map(coros).get(this_monday.isoformat()) if coros else None
-            card = build_current_week_card(this_monday, this_week["km"], this_week["runs"],
-                                           coros_week=coros_week, has_coros=coros is not None)
+            card = build_current_week_card(this_monday, this_week["km"],
+                                           week_sessions_label(this_week, compact=True),
+                                           coros_week=coros_week, has_coros=coros is not None,
+                                           run_km=this_week["run_km"])
             html = set_html(html, "CURRENT_WEEK", card, notes, "historial: tarjeta de la semana en curso")
 
     for n in notes:

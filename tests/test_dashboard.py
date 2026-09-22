@@ -244,8 +244,10 @@ class TestMarkers(unittest.TestCase):
     JS_MARKERS = [
         "RHR30_LABELS", "RHR30_DATA", "LOAD14_LABELS", "LOAD14_SHORT", "LOAD14_LONG",
         "SLEEP30_LABELS", "SLEEP30_DATA", "SLEEP30_TARGET",
-        "CHARTVOL_LABELS", "CHARTVOL_DATA", "MONTHLY_YEAR", "MONTHLY_LABELS", "MONTHLY_VOL",
-        "MONTHLY_RHR", "WEEKLY_MONDAYS", "WEEKLY_LABELS", "WEEKLY_VOL", "WEEKLY_SLEEP", "WEEKLY_RHR",
+        "CHARTVOL_LABELS", "CHARTVOL_RUN", "CHARTVOL_WALK",
+        "MONTHLY_YEAR", "MONTHLY_LABELS", "MONTHLY_VOL_RUN", "MONTHLY_VOL_WALK",
+        "MONTHLY_RHR", "WEEKLY_MONDAYS", "WEEKLY_LABELS",
+        "WEEKLY_VOL_RUN", "WEEKLY_VOL_WALK", "WEEKLY_SLEEP", "WEEKLY_RHR",
     ]
 
     def test_marcadores_de_texto_existen_y_no_se_repiten(self):
@@ -283,10 +285,19 @@ class TestConDatos(unittest.TestCase):
         # Mejor 10K = la carrera más rápida de las que cubren 10 km (49:12)
         self.assertIn("49:12", marked(self.html, "ENTRENO_PB"))
         self.assertIn("1:57:00", marked(self.html, "ENTRENO_PB"))
-        # Gráfico de volumen: 8 barras, la última es la semana en curso y va con *
-        data = marked_js(self.html, "CHARTVOL_DATA")
-        self.assertEqual(len(ud.parse_js_array(data)), ud.CHARTVOL_WEEKS)
+        # Gráfico de volumen: 8 barras apiladas (carrera + caminatas), la última
+        # es la semana en curso y va con *
+        run = ud.parse_js_array(marked_js(self.html, "CHARTVOL_RUN"))
+        walk = ud.parse_js_array(marked_js(self.html, "CHARTVOL_WALK"))
+        self.assertEqual(len(run), ud.CHARTVOL_WEEKS)
+        self.assertEqual(len(walk), ud.CHARTVOL_WEEKS)
+        # La caminata de 4,5 km del fixture cae en la semana del 31 ago
+        self.assertAlmostEqual(sum(walk), 4.5, delta=0.05)
         self.assertTrue(marked_js(self.html, "CHARTVOL_LABELS").rstrip("]").endswith("*'"))
+        # Las tarjetas semanales ya no dicen "Carrera": el km es volumen a pie
+        self.assertIn("<span>Volumen</span>", marked(self.html, "WEEKLY_CARDS"))
+        self.assertNotIn("<span>Carrera</span>", marked(self.html, "WEEKLY_CARDS"))
+        self.assertIn("<span>Volumen</span>", marked(self.html, "CURRENT_WEEK"))
         # Estado del plan: 18 sep 2026 = semana 2 (arrancó el 7 sep)
         self.assertIn("semana 2 de 18", marked(self.html, "PLAN_STATUS"))
 
@@ -309,8 +320,9 @@ class TestConDatos(unittest.TestCase):
         self.assertEqual(races.count('class="race-item"'), 4)
         self.assertIn("Cursa El Corte Inglés", races)
         self.assertIn("1:57:00", races)
-        # Barras mensuales: de enero al mes en curso
-        self.assertEqual(len(ud.parse_js_array(marked_js(self.html, "MONTHLY_VOL"))), TODAY.month)
+        # Barras mensuales (carrera + caminatas apiladas): de enero al mes en curso
+        self.assertEqual(len(ud.parse_js_array(marked_js(self.html, "MONTHLY_VOL_RUN"))), TODAY.month)
+        self.assertEqual(len(ud.parse_js_array(marked_js(self.html, "MONTHLY_VOL_WALK"))), TODAY.month)
         self.assertEqual(marked(self.html, "MONTHLY_VOL_YEAR"), "2026")
         # 12 tarjetas semanales + la de la semana en curso aparte
         self.assertEqual(marked(self.html, "WEEKLY_CARDS").count('class="wcard'), ud.WEEKLY_CARDS)
@@ -434,7 +446,8 @@ class TestSinDatos(unittest.TestCase):
         """
         antes = new_html()
         html, _ = run_all_sections(antes, [], build_coros())
-        for marker in ("CHARTVOL_DATA", "MONTHLY_VOL", "WEEKLY_VOL"):
+        for marker in ("CHARTVOL_RUN", "CHARTVOL_WALK", "MONTHLY_VOL_RUN", "MONTHLY_VOL_WALK",
+                       "WEEKLY_VOL_RUN", "WEEKLY_VOL_WALK"):
             esperado = ud.parse_js_array(marked_js(antes, marker))
             self.assertTrue(esperado, f"{marker} está vacío en el HTML")
             self.assertEqual(ud.parse_js_array(marked_js(html, marker)), esperado, marker)
@@ -502,8 +515,13 @@ class TestHelpers(unittest.TestCase):
     def test_trend_4_mas_4(self):
         acts = stats.normalize(build_activities())
         t = stats.trend(acts, build_coros(), TODAY, weeks=4)
-        self.assertAlmostEqual(t["vol"]["now"], sum([28, 24, 22, 20]) / 4, delta=0.6)
+        # El volumen cuenta también las caminatas: el fixture mete 4,5 km andando
+        # en la semana del 31 ago, que cae en la ventana "now".
+        self.assertAlmostEqual(t["vol"]["now"], (sum([28, 24, 22, 20]) + 4.5) / 4, delta=0.6)
         self.assertAlmostEqual(t["vol"]["prev"], sum([10, 12, 26, 31]) / 4, delta=0.6)
+        # Y el desglose dice cuánto de eso es correr (sin la caminata)
+        self.assertAlmostEqual(t["vol_run"]["now"], sum([28, 24, 22, 20]) / 4, delta=0.6)
+        self.assertAlmostEqual(t["vol_run"]["prev"], sum([10, 12, 26, 31]) / 4, delta=0.6)
         self.assertIsNotNone(t["rhr"]["now"])
         self.assertEqual(t["now"]["end"], stats.week_start(TODAY) - timedelta(days=1))
 
@@ -516,6 +534,87 @@ class TestHelpers(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # 5. Constantes compartidas y flujo completo (main)
 # ---------------------------------------------------------------------------
+
+class TestVolumenMultiactividad(unittest.TestCase):
+    """El volumen del dashboard es **todo lo que se hace a pie**, no solo carrera.
+
+    Caminar y el senderismo suman al volumen semanal/mensual (y salen apilados
+    en los gráficos para que se vea cuánto es correr). La bici, la natación o el
+    remo registran kilómetros pero no son carga de carrera: quedan fuera a
+    propósito, y hay un test que lo vigila.
+    """
+
+    def setUp(self):
+        self.monday = date(2026, 9, 7)     # lunes de la semana de prueba
+        self.acts = stats.normalize([
+            raw_activity(self.monday, 6.0, 32, type_="TrailRun"),
+            raw_activity(self.monday + timedelta(days=1), 10.0, 55, type_="Run"),
+            raw_activity(self.monday + timedelta(days=2), 5.0, 50, type_="Walk"),
+            raw_activity(self.monday + timedelta(days=3), 8.0, 80, type_="Hike"),
+            raw_activity(self.monday + timedelta(days=4), 40.0, 90, type_="Ride"),    # bici: fuera
+            raw_activity(self.monday + timedelta(days=5), 1.5, 30, type_="Swim"),     # natación: fuera
+            raw_activity(self.monday + timedelta(days=6), 0.0, 30, type_="WeightTraining"),
+        ])
+
+    def test_la_semana_suma_carrera_y_caminatas(self):
+        self.assertEqual(stats.weekly_km(self.acts, self.monday), 29.0)      # 10 + 6 + 5 + 8
+        self.assertEqual(stats.weekly_run_km(self.acts, self.monday), 16.0)
+        self.assertEqual(stats.weekly_walk_km(self.acts, self.monday), 13.0)
+
+    def test_el_desglose_cierra(self):
+        s = stats.weekly_sessions(self.acts, self.monday)
+        self.assertEqual((s["runs"], s["walks"], s["strength"]), (2, 2, 1))
+        self.assertAlmostEqual(s["run_km"] + s["walk_km"], s["km"], delta=0.05)
+
+    def test_las_caminatas_cuentan_como_sesion(self):
+        sess = stats.weekly_sessions(self.acts, self.monday)
+        self.assertEqual(ud.week_sessions_label(sess, compact=True), "2 + 2 caminatas + 1 fuerza")
+        self.assertEqual(ud.week_sessions_label(sess),
+                         "2 salidas + 2 caminatas + 1 fuerza")
+        # Semana vacía: ni "None" ni "0 sesiones" inventadas
+        self.assertEqual(ud.week_sessions_label({"runs": 0, "walks": 0, "strength": 0}, compact=True), "")
+        self.assertEqual(ud.week_sessions_label({"runs": 0, "walks": 0, "strength": 0}),
+                         "ninguna sesión")
+
+    def test_serie_apilada_alineada_con_los_lunes(self):
+        totals, run, walk = stats.weekly_km_series(
+            self.acts, [self.monday, self.monday + timedelta(days=7)])
+        self.assertEqual(totals, [29.0, 0.0])
+        self.assertEqual(run, [16.0, 0.0])
+        self.assertEqual(walk, [13.0, 0.0])
+
+    def test_el_mes_tambien_cuenta_caminatas(self):
+        split = stats.month_volume_split(self.acts, 2026)
+        self.assertEqual(split[9], {"km": 29.0, "run_km": 16.0, "walk_km": 13.0})
+        self.assertEqual(stats.month_volume(self.acts, 2026)[9], 29.0)
+        self.assertEqual(stats.month_run_volume(self.acts, 2026)[9], 16.0)
+        self.assertEqual(stats.month_sessions(self.acts, 2026)[9],
+                         {"runs": 2, "strength": 1, "walks": 2})
+
+    def test_lo_que_no_es_andar_no_cuenta(self):
+        self.assertTrue({"run", "trailrun", "virtualrun", "walk", "hike"} <= stats.FOOT_TYPES)
+        self.assertFalse({"ride", "swim", "row", "elliptical"} & stats.FOOT_TYPES)
+        self.assertEqual(sorted(a["type"] for a in stats.foot_activities(self.acts)),
+                         ["Hike", "Run", "TrailRun", "Walk"])
+
+    def test_la_tarjeta_de_la_semana_en_curso_dice_cuanto_es_correr(self):
+        card = ud.build_current_week_card(self.monday, 29.0, 2, run_km=16.0)
+        self.assertIn("<span>Volumen</span>", card)
+        self.assertIn("29,0 km", card)
+        self.assertIn("(16,0 carrera)", card)
+        # Sin caminatas no hay nada que desglosar
+        self.assertNotIn("carrera)", ud.build_current_week_card(self.monday, 16.0, 2, run_km=16.0))
+
+    def test_la_tarjeta_semanal_desglosa_cuando_hay_caminata(self):
+        html = ud.apply_historial(
+            "<!--AUTO:WEEKLY_CARDS-->x<!--/AUTO:WEEKLY_CARDS-->",
+            self.acts, None, self.monday + timedelta(days=10), [],
+        )[0]
+        cards = marked(html, "WEEKLY_CARDS")
+        self.assertIn("<span>Volumen</span>", cards)
+        self.assertIn("29,0 km", cards)
+        self.assertIn("(16,0 carrera)", cards)
+
 
 class TestSueño(unittest.TestCase):
     """Bloque 'Análisis del sueño' de Hábitos: cálculos, pintado y silencio.

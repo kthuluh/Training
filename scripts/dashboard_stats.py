@@ -25,8 +25,18 @@ MESES_LARGO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
                "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
-# Tipos de actividad de Strava que cuentan como "carrera" (volumen a pie).
+# Tipos de actividad de Strava que cuentan como "carrera".
 RUN_TYPES = {"run", "trailrun", "virtualrun"}
+# Tipos que también son volumen **a pie**: caminar y senderismo. Suman al
+# volumen semanal/mensual del dashboard igual que las carreras (son kilómetros
+# de carga real), pero se pintan aparte para que se vea cuánto es correr.
+WALK_TYPES = {"walk", "hike"}
+# Todo lo que cuenta como volumen: carrera + caminatas. Lo que NO está aquí
+# (bici, natación, remo, elíptica…) registra kilómetros pero no es carga de
+# carrera, así que queda fuera del volumen a propósito. Si quieres contar
+# también la bici, añade "ride" a WALK_TYPES (o a RUN_TYPES si prefieres
+# verla dentro de la barra de carrera).
+FOOT_TYPES = RUN_TYPES | WALK_TYPES
 # Tipos que cuentan como fuerza (lo que el plan pide 2x/semana).
 STRENGTH_TYPES = {"weighttraining"}
 
@@ -168,6 +178,8 @@ def normalize(raw_activities):
             "avg_hr": _num(a.get("average_heartrate")),
             "race": int(_num(a.get("workout_type")) or -1) == 1,
             "is_run": stype.lower() in RUN_TYPES,
+            "is_walk": stype.lower() in WALK_TYPES,
+            "is_foot": stype.lower() in FOOT_TYPES,
             "is_strength": stype.lower() in STRENGTH_TYPES,
         })
     out.sort(key=lambda a: (a["date"], a["moving_time"]))
@@ -176,6 +188,16 @@ def normalize(raw_activities):
 
 def runs(acts):
     return [a for a in acts if a["is_run"]]
+
+
+def walks(acts):
+    """Caminatas y senderismo (cuentan para el volumen, pero no son carrera)."""
+    return [a for a in acts if a["is_walk"]]
+
+
+def foot_activities(acts):
+    """Todo lo que suma kilómetros a pie: carreras + caminatas."""
+    return [a for a in acts if a["is_foot"]]
 
 
 def strength_sessions(acts):
@@ -198,23 +220,67 @@ def in_week(d, monday):
 
 
 def weekly_sessions(acts, monday):
-    """Cuántas cosas se hicieron esa semana (lunes–domingo)."""
+    """Cuántas cosas se hicieron esa semana (lunes–domingo).
+
+    `km` es el volumen **a pie** de la semana: carreras + caminatas/senderismo.
+    `run_km` y `walk_km` lo desglosan (la bici, la natación… quedan fuera:
+    registran kilómetros pero no son carga de carrera).
+    """
     same = [a for a in acts if in_week(a["date"], monday)]
+    run_km = round(sum(a["km"] for a in same if a["is_run"]), 1)
+    walk_km = round(sum(a["km"] for a in same if a["is_walk"]), 1)
     return {
         "runs": sum(1 for a in same if a["is_run"]),
         "strength": sum(1 for a in same if a["is_strength"]),
-        "walks": sum(1 for a in same if a["type"].lower() in {"walk", "hike"}),
-        "km": round(sum(a["km"] for a in same if a["is_run"]), 1),
+        "walks": sum(1 for a in same if a["is_walk"]),
+        "km": round(run_km + walk_km, 1),
+        "run_km": run_km,
+        "walk_km": walk_km,
     }
 
 
 def weekly_km_map(acts, mondays):
-    """{ 'YYYY-MM-DD'(lunes): km de carrera }."""
+    """{ 'YYYY-MM-DD'(lunes): km a pie de esa semana }."""
     return {m.isoformat(): weekly_sessions(acts, m)["km"] for m in mondays}
 
 
 def weekly_km(acts, monday):
+    """km a pie de esa semana (carrera + caminatas)."""
     return weekly_sessions(acts, monday)["km"]
+
+
+def weekly_run_km(acts, monday):
+    """km de carrera de esa semana (lo que contaba antes como 'volumen')."""
+    return weekly_sessions(acts, monday)["run_km"]
+
+
+def weekly_walk_km(acts, monday):
+    """km caminando / de senderismo esa semana."""
+    return weekly_sessions(acts, monday)["walk_km"]
+
+
+def weekly_km_series(acts, mondays):
+    """([total], [carrera], [caminando]) alineados con `mondays`, en una pasada.
+
+    Los gráficos apilados necesitan las tres series a la vez y llamar a
+    `weekly_sessions` por cada lunes es recorrer las actividades una vez por
+    gráfico; aquí se agrupan de una sola vez.
+    """
+    index = {}
+    for a in acts:
+        if not a["is_foot"]:
+            continue
+        slot = index.setdefault(week_start(a["date"]).isoformat(), [0.0, 0.0])
+        slot[0] += a["km"]
+        if a["is_run"]:
+            slot[1] += a["km"]
+    totals, run, walk = [], [], []
+    for m in mondays:
+        km, km_run = index.get(m.isoformat(), (0.0, 0.0))
+        totals.append(round(km, 1))
+        run.append(round(km_run, 1))
+        walk.append(round(km - km_run, 1))
+    return totals, run, walk
 
 
 def recent_mondays(today, n, include_current=False):
@@ -224,26 +290,44 @@ def recent_mondays(today, n, include_current=False):
     return [last - timedelta(weeks=i) for i in range(n - 1, -1, -1)]
 
 
-def month_volume(acts, year):
-    """{ 1..12: km de carrera } (solo meses con datos)."""
+def month_volume_split(acts, year):
+    """{ 1..12: {'km': total a pie, 'run_km': carrera, 'walk_km': caminando} }."""
     out = {}
     for a in acts:
-        if a["is_run"] and a["date"].year == year:
-            out[a["date"].month] = round(out.get(a["date"].month, 0.0) + a["km"], 1)
-    return out
+        if not a["is_foot"] or a["date"].year != year:
+            continue
+        slot = out.setdefault(a["date"].month, {"km": 0.0, "run_km": 0.0, "walk_km": 0.0})
+        slot["km"] += a["km"]
+        if a["is_run"]:
+            slot["run_km"] += a["km"]
+        else:
+            slot["walk_km"] += a["km"]
+    return {m: {k: round(v, 1) for k, v in vals.items()} for m, vals in out.items()}
+
+
+def month_volume(acts, year):
+    """{ 1..12: km a pie (carrera + caminatas) } (solo meses con datos)."""
+    return {m: vals["km"] for m, vals in month_volume_split(acts, year).items()}
+
+
+def month_run_volume(acts, year):
+    """{ 1..12: km de carrera } — por si algo quiere solo lo que es correr."""
+    return {m: vals["run_km"] for m, vals in month_volume_split(acts, year).items()}
 
 
 def month_sessions(acts, year):
-    """{ 1..12: {'runs': n, 'strength': n} }."""
+    """{ 1..12: {'runs': n, 'strength': n, 'walks': n} }."""
     out = {}
     for a in acts:
         if a["date"].year != year:
             continue
-        slot = out.setdefault(a["date"].month, {"runs": 0, "strength": 0})
+        slot = out.setdefault(a["date"].month, {"runs": 0, "strength": 0, "walks": 0})
         if a["is_run"]:
             slot["runs"] += 1
         elif a["is_strength"]:
             slot["strength"] += 1
+        elif a["is_walk"]:
+            slot["walks"] += 1
     return out
 
 
@@ -378,11 +462,14 @@ def trend(acts, coros, today, weeks=4):
     def window_mondays(start):
         return [start + timedelta(weeks=i) for i in range(weeks)]
 
-    def vol_mean(start):
-        vals = [weekly_km(acts, m) for m in window_mondays(start)]
+    def vol_mean(start, getter=weekly_km):
+        vals = [getter(acts, m) for m in window_mondays(start)]
         return round(sum(vals) / len(vals), 1) if any(v > 0 for v in vals) else None
 
     vol_now, vol_prev = vol_mean(now_start), vol_mean(prev_start)
+    # Lo mismo pero solo con las carreras: sirve para decir cuánto del volumen
+    # es correr y cuánto es caminar (None si no hay ninguna carrera).
+    vol_run_now, vol_run_prev = vol_mean(now_start, weekly_run_km), vol_mean(prev_start, weekly_run_km)
 
     def coros_mean(key, start, end):
         vals = []
@@ -408,6 +495,7 @@ def trend(acts, coros, today, weeks=4):
         "now": {"start": now_start, "end": now_end},
         "prev": {"start": prev_start, "end": prev_end},
         "vol": {"now": vol_now, "prev": vol_prev},
+        "vol_run": {"now": vol_run_now, "prev": vol_run_prev},
         "rhr": {"now": rhr_now, "prev": rhr_prev, "n_now": rhr_n_now, "n_prev": rhr_n_prev},
         "sleep": {"now": sleep_now, "prev": sleep_prev, "n_now": sleep_n_now, "n_prev": sleep_n_prev},
         "steps": {"now": steps_now, "n_now": steps_n_now},

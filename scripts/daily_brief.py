@@ -156,7 +156,12 @@ def get_strava_summary(today):
 
     week_start = int(datetime.combine(today - timedelta(days=7), datetime.min.time(), tzinfo=timezone.utc).timestamp())
     week_acts = strava_activities(token, week_start, y_end)
-    week_km = sum(a["distance"] for a in week_acts if a["type"] == "Run") / 1000
+    # Volumen a pie: carrera Y caminatas/senderismo, igual que en el dashboard.
+    # Lo que no es andar (bici, natación…) queda fuera a propósito.
+    week_km = sum(
+        a["distance"] for a in week_acts
+        if str(a.get("sport_type") or a.get("type") or "").lower() in stats.FOOT_TYPES
+    ) / 1000
 
     if not yesterday_acts:
         y_text = "Descanso — no se registró actividad."
@@ -331,7 +336,7 @@ def build_email_html(today, plan, strava, coros):
     <h2>🏃 Tu arranque del día — {today.strftime('%A %d de %B, %Y')}</h2>
 
     <p><b>Resumen de ayer (Strava):</b> {strava['yesterday']}<br>
-    Volumen de los últimos 7 días: {strava['week_km']} km</p>
+    Volumen de los últimos 7 días: {strava['week_km']} km (carrera + caminatas)</p>
 
     {coros_html}
 

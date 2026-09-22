@@ -208,7 +208,7 @@
 
     <div class="flag"><b>Punto de partida real:</b> <!--AUTO:ENTRENO_PB-->tu mejor 10K es <b>46:40</b> (4:40/km) y tu mejor 21K es <b>1:56:00</b> (5:30/km) (de los últimos 12 meses en Strava)<!--/AUTO:ENTRENO_PB--> — el sistema de zonas de Strava tenía cargado un 10K de referencia de 50:00, desactualizado respecto a tu marca real. <!--AUTO:ENTRENO_LAST4W-->Últimas 4 semanas registradas: ~2,5 salidas/semana, tirada larga hasta 13,0 km con desnivel (hasta 356 m).<!--/AUTO:ENTRENO_LAST4W--> <!--AUTO:ENTRENO_VOL_NOTE-->El volumen semanal ha subido rápido: de 0,0 km (semana del 27 jul) a 47,1 km (semana del 17 ago) en 3 semanas.<!--/AUTO:ENTRENO_VOL_NOTE--> Es un salto grande — el plan de abajo lo estabiliza antes de seguir subiendo.</div>
 
-    <div class="section-title">Volumen semanal reciente (carrera, km)</div>
+    <div class="section-title">Volumen semanal reciente (carrera + caminatas, km)</div>
     <div class="card"><div class="chart-wrap"><canvas id="chartVol"></canvas></div></div>
 
     <div class="section-title"><!--AUTO:ZONES_META-->Zonas de FC (Karvonen: FC reposo 50 · FC máx 182)<!--/AUTO:ZONES_META--></div>
@@ -379,7 +379,7 @@
       <div class="race-item"><div><div class="rname">12ena Cursa Diagonal — 10K</div><div class="rmeta">24 mayo · Barcelona</div></div><div class="num">49:11</div></div><!--/AUTO:RACES-->
     </div>
 
-    <div class="section-title">Volumen mensual de carrera — <!--AUTO:MONTHLY_VOL_YEAR-->2026<!--/AUTO:MONTHLY_VOL_YEAR--></div>
+    <div class="section-title">Volumen mensual a pie (carrera + caminatas) — <!--AUTO:MONTHLY_VOL_YEAR-->2026<!--/AUTO:MONTHLY_VOL_YEAR--></div>
     <div class="card"><div class="chart-wrap"><canvas id="chartMonthlyVol"></canvas></div></div>
 
     <div class="section-title">FC reposo media mensual — <!--AUTO:MONTHLY_RHR_YEAR-->2026<!--/AUTO:MONTHLY_RHR_YEAR--></div>
@@ -404,79 +404,79 @@
     <div class="section-title">Semana a semana — detalle completo</div>
     <div class="wgrid">
       <!--AUTO:WEEKLY_CARDS--><div class="wcard"><div class="wk-lbl">29jun-5jul</div>
-        <div class="metric"><span>Carrera</span><span class="v">28,2 km</span></div>
+        <div class="metric"><span>Volumen</span><span class="v">28,2 km</span></div>
         <div class="metric"><span>Sesiones</span><span class="v">3</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 20m</span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm</span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">6-12 jul</div>
-        <div class="metric"><span>Carrera</span><span class="v">0,0 km <span class="delta down">▼28,2</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">0,0 km <span class="delta down">▼28,2</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
         <div class="metric"><span>Sueño</span><span class="v">6h 29m <span class="delta down">▼51m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta flat">＝</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">13-19 jul</div>
-        <div class="metric"><span>Carrera</span><span class="v">25,8 km <span class="delta up">▲25,8</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">25,8 km <span class="delta up">▲25,8</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">3</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 19m <span class="delta up">▲50m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">48 bpm <span class="delta down">▲3</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">20-26 jul</div>
-        <div class="metric"><span>Carrera</span><span class="v">13,3 km <span class="delta down">▼12,5</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">13,3 km <span class="delta down">▼12,5</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 fuerza</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 09m <span class="delta down">▼10m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼3</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">27jul-2ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">0,0 km <span class="delta down">▼13,3</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">0,0 km <span class="delta down">▼13,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 56m <span class="delta up">▲47m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">3-9 ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">0,0 km <span class="delta flat">＝</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">0,0 km <span class="delta flat">＝</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 56m <span class="delta flat">＝</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">10-16 ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">26,3 km <span class="delta up">▲26,3</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">26,3 km <span class="delta up">▲26,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4</span></div>
         <div class="metric"><span>Sueño</span><span class="v">5h 45m <span class="delta down">▼2h11m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">51 bpm <span class="delta down">▲4</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">17-23 ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">47,1 km <span class="delta up">▲20,8</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">47,1 km <span class="delta up">▲20,8</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">5 + 1 caminata — pico del periodo</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 37m <span class="delta up">▲1h52m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta up">▼5</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">24-30 ago</div>
-        <div class="metric"><span>Carrera</span><span class="v">38,0 km <span class="delta down">▼9,1</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">38,0 km <span class="delta down">▼9,1</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4 + 2 caminatas</span></div>
         <div class="metric"><span>Sueño</span><span class="v">6h 25m <span class="delta down">▼1h12m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">31ago-6sep</div>
-        <div class="metric"><span>Carrera</span><span class="v">16,7 km <span class="delta down">▼21,3</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">16,7 km <span class="delta down">▼21,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 caminata</span></div>
         <div class="metric"><span>Sueño</span><span class="v">7h 34m <span class="delta up">▲1h09m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">7-13 sep</div>
-        <div class="metric"><span>Carrera</span><span class="v">14,8 km <span class="delta down">▼1,9</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">14,8 km <span class="delta down">▼1,9</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 fuerza + 4 caminatas</span></div>
         <div class="metric"><span>Sueño</span><span class="v">—</span></div>
         <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">14-20 sep</div>
-        <div class="metric"><span>Carrera</span><span class="v">15,8 km <span class="delta up">▲1,0</span></span></div>
+        <div class="metric"><span>Volumen</span><span class="v">15,8 km <span class="delta up">▲1,0</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 fuerza</span></div>
         <div class="metric"><span>Sueño</span><span class="v">—</span></div>
         <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta flat">＝</span></span></div>
       </div><!--/AUTO:WEEKLY_CARDS-->
       <!--AUTO:CURRENT_WEEK--><div class="wcard partial"><div class="wk-lbl">21-27 sep · en curso</div>
-        <div class="metric"><span>Carrera</span><span class="v">10,0 km</span></div>
+        <div class="metric"><span>Volumen</span><span class="v">10,0 km</span></div>
         <div class="metric"><span>Sesiones</span><span class="v">1</span></div>
         <div class="metric" style="opacity:0.7;"><span>Sueño <i style="font-size:10px;">(manual)</i></span><span class="v">—</span></div>
         <div class="metric"><span>FC reposo</span><span class="v">42 bpm</span></div>
@@ -581,24 +581,37 @@
     }
   });
 
-  // Weekly volume chart
+  // Weekly volume chart — barras apiladas: la barra entera es el volumen de la
+  // semana (carrera + caminatas/senderismo). Lo que NO es andar (bici,
+  // natación…) queda fuera del volumen a propósito.
   new Chart(document.getElementById('chartVol'), {
     type:'bar',
     data:{
       labels:/*AUTO:CHARTVOL_LABELS*/['3-9 ago','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep','21-27 sep*']/*/AUTO:CHARTVOL_LABELS*/,
       datasets:[{
-        label:'km/semana',
-        data:/*AUTO:CHARTVOL_DATA*/[0,26.3,47.1,38,16.7,14.8,15.8,10]/*/AUTO:CHARTVOL_DATA*/,
+        label:'Carrera',
+        data:/*AUTO:CHARTVOL_RUN*/[0,26.3,47.1,38,16.7,14.8,15.8,10]/*/AUTO:CHARTVOL_RUN*/,
         backgroundColor:'#3F5C46',
+        borderRadius:2
+      },{
+        label:'Caminatas / senderismo',
+        data:/*AUTO:CHARTVOL_WALK*/[0,0,0,0,0,0,0,0]/*/AUTO:CHARTVOL_WALK*/,
+        backgroundColor:'#8FA98F',
         borderRadius:2
       }]
     },
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}},
+        tooltip:{mode:'index',callbacks:{footer:(items)=>{
+          const total=items.reduce((s,i)=>s+((i.parsed&&i.parsed.y)||0),0);
+          return 'Total: '+total.toFixed(1).replace('.',',')+' km';
+        }}}
+      },
       scales:{
-        y:{grid:{color:inkGrid},title:{display:true,text:'km'}},
-        x:{grid:{display:false},ticks:{maxRotation:0,minRotation:0,font:{size:10.5}}}
+        y:{stacked:true,grid:{color:inkGrid},title:{display:true,text:'km'}},
+        x:{stacked:true,grid:{display:false},ticks:{maxRotation:0,minRotation:0,font:{size:10.5}}}
       }
     }
   });
@@ -613,16 +626,30 @@
     data:{
       labels: MONTHLY_LABELS,
       datasets:[{
-        label:'km/mes',
-        data:/*AUTO:MONTHLY_VOL*/[93.9,110.9,44,29.6,92.4,61.6,67.3,111.4,57.3]/*/AUTO:MONTHLY_VOL*/,
+        label:'Carrera',
+        data:/*AUTO:MONTHLY_VOL_RUN*/[93.9,110.9,44,29.6,92.4,61.6,67.3,111.4,57.3]/*/AUTO:MONTHLY_VOL_RUN*/,
         backgroundColor:(ctx)=>ctx.index===new Date().getMonth()?'#D6CDB3':'#3F5C46',
+        borderRadius:2
+      },{
+        label:'Caminatas / senderismo',
+        data:/*AUTO:MONTHLY_VOL_WALK*/[0,0,0,0,0,0,0,0,0]/*/AUTO:MONTHLY_VOL_WALK*/,
+        backgroundColor:'#8FA98F',
         borderRadius:2
       }]
     },
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{y:{grid:{color:inkGrid},title:{display:true,text:'km'}},x:{grid:{display:false}}}
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}},
+        tooltip:{mode:'index',callbacks:{footer:(items)=>{
+          const total=items.reduce((s,i)=>s+((i.parsed&&i.parsed.y)||0),0);
+          return 'Total: '+total.toFixed(1).replace('.',',')+' km';
+        }}}
+      },
+      scales:{
+        y:{stacked:true,grid:{color:inkGrid},title:{display:true,text:'km'}},
+        x:{stacked:true,grid:{display:false}}
+      }
     }
   });
 
@@ -656,7 +683,8 @@
     data:{
       labels:/*AUTO:WEEKLY_LABELS*/['22-28 jun','29jun-5jul','6-12 jul','13-19 jul','20-26 jul','27jul-2ago','3-9 ago','10-16 ago','17-23 ago','24-30 ago','31ago-6sep','7-13 sep','14-20 sep','21-27 sep*']/*/AUTO:WEEKLY_LABELS*/,
       datasets:[
-        {type:'bar',label:'Volumen (km)',data:/*AUTO:WEEKLY_VOL*/[12.5,28.2,0,25.8,13.3,0,0,26.3,47.1,38,16.7,14.8,15.8,10]/*/AUTO:WEEKLY_VOL*/,backgroundColor:'#3F5C46',yAxisID:'y',order:2},
+        {type:'bar',label:'Carrera (km)',data:/*AUTO:WEEKLY_VOL_RUN*/[12.5,28.2,0,25.8,13.3,0,0,26.3,47.1,38,16.7,14.8,15.8,10]/*/AUTO:WEEKLY_VOL_RUN*/,backgroundColor:'#3F5C46',yAxisID:'y',order:3,stack:'vol'},
+        {type:'bar',label:'Caminatas (km)',data:/*AUTO:WEEKLY_VOL_WALK*/[0,0,0,0,0,0,0,0,0,0,0,0,0,0]/*/AUTO:WEEKLY_VOL_WALK*/,backgroundColor:'#8FA98F',yAxisID:'y',order:2,stack:'vol'},
         {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[6.48,7.32,null,7.15,7.94,null,null,7.93,5.75,7.61,6.42,7.57,7.52,null]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
         {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[48,45,45,48,45,46,47,51,46,45,46,47,47,42]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
       ]
@@ -665,7 +693,7 @@
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:10.5}}}},
       scales:{
-        y:{position:'left',grid:{color:inkGrid},title:{display:true,text:'km'}},
+        y:{stacked:true,position:'left',grid:{color:inkGrid},title:{display:true,text:'km'}},
         y1:{position:'right',min:0,max:10,grid:{display:false},title:{display:true,text:'horas sueño'}},
         y2:{display:false,min:40,max:65},
         x:{grid:{display:false},ticks:{font:{size:9.5},maxRotation:60,minRotation:60}}
