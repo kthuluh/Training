@@ -118,7 +118,12 @@ def _post(url, *, form=None, json_body=None, headers=None):
     try:
         payload = resp.json()
     except ValueError:
-        payload = {"_raw_text": resp.text[:500]}
+        # MCP también puede responder mediante eventos SSE.
+        chunks = [line[5:].lstrip() for line in resp.text.splitlines() if line.startswith("data:")]
+        try:
+            payload = json.loads("\n".join(chunks)) if chunks else {"_raw_text": resp.text[:500]}
+        except ValueError:
+            payload = {"_raw_text": resp.text[:500]}
     if not 200 <= resp.status_code < 300:
         raise CorosMCPError(f"{url} → HTTP {resp.status_code}: {_safe(payload)}")
     return payload
@@ -154,6 +159,34 @@ def register_client(issuer=DEFAULT_ISSUER, client_name=DEFAULT_CLIENT_NAME,
     if not isinstance(client_id, str) or not client_id:
         raise CorosMCPError(f"el registro no devolvió client_id: {_safe(payload)}")
     return client_id
+
+
+def resolve_issuer(issuer=DEFAULT_ISSUER):
+    """Resolver el gateway global como hace el cliente oficial de COROS.
+
+    Los clientes registrados en una región deben renovarse en esa misma región.
+    Ante un descubrimiento fallido se detiene en vez de arriesgar credenciales
+    contra un servidor distinto. Un issuer regional explícito no se redirige.
+    """
+    issuer = issuer.rstrip("/")
+    allowed = {"https://mcp.coros.com", "https://mcpeu.coros.com",
+               "https://mcpus.coros.com", "https://mcpcn.coros.com"}
+    if issuer not in allowed:
+        raise CorosMCPError("issuer COROS no permitido")
+    if issuer != DEFAULT_ISSUER:
+        return issuer
+    url = issuer + "/.well-known/openid-configuration"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
+            payload = json.load(response)
+    except (urllib.error.URLError, ValueError, OSError) as exc:
+        raise CorosMCPError("no se pudo descubrir el issuer regional COROS") from exc
+    regional = payload.get("issuer") if isinstance(payload, dict) else None
+    regional = regional.rstrip("/") if isinstance(regional, str) else ""
+    if regional not in allowed:
+        raise CorosMCPError("COROS devolvió un issuer regional no válido")
+    return regional
 
 
 def authorize_url(client_id, code_challenge, state, mcp_url,
@@ -431,7 +464,7 @@ def parse_sleep(result: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=None,
-                issuer=None, mcp_url=None):
+                issuer=None, mcp_url=None, token_store=None):
     """Devuelve (noches, nuevo_refresh_token). Lanza CorosMCPError si algo falla.
 
     `nuevo_refresh_token` es None cuando se entra con un access token directo
@@ -439,8 +472,11 @@ def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=N
     camino no se llama a /oauth2/token, así que no hay rotación que avisar.
     """
     issuer = (issuer or os.environ.get("COROS_MCP_ISSUER") or DEFAULT_ISSUER).rstrip("/")
-    mcp_url = mcp_url or os.environ.get("COROS_MCP_URL") or f"{issuer}/mcp"
     access = access_token or os.environ.get("COROS_MCP_ACCESS_TOKEN")
+    if not access and not (client_id or os.environ.get("COROS_MCP_CLIENT_ID")):
+        raise CorosMCPError("faltan COROS_MCP_CLIENT_ID / COROS_MCP_REFRESH_TOKEN")
+    issuer = resolve_issuer(issuer)
+    mcp_url = mcp_url or os.environ.get("COROS_MCP_URL") or f"{issuer}/mcp"
     if access:
         # Atajo: con un access token válido no hace falta refrescar nada.
         nuevo_refresh = None
@@ -452,7 +488,13 @@ def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=N
                 "faltan COROS_MCP_CLIENT_ID / COROS_MCP_REFRESH_TOKEN "
                 "(genera unos con scripts/get_coros_mcp_token.py), "
                 "o define COROS_MCP_ACCESS_TOKEN para saltarte el refresco")
+        if token_store is not None:
+            refresh_token = token_store.load(refresh_token)
         access, nuevo_refresh = refresh_access_token(client_id, refresh_token, issuer)
+        # Guardar ANTES de cualquier llamada MCP: si falla el sueño, la
+        # renovación de un solo uso no se debe perder.
+        if token_store is not None and nuevo_refresh != refresh_token:
+            token_store.save(nuevo_refresh)
     days = int(days or os.environ.get("COROS_SLEEP_DAYS") or 30)
 
     initialize(mcp_url, access)
@@ -490,12 +532,14 @@ def main(argv=None):
 
     issuer = (os.environ.get("COROS_MCP_ISSUER") or DEFAULT_ISSUER).rstrip("/")
     mcp_url = os.environ.get("COROS_MCP_URL") or f"{issuer}/mcp"
+    if "--schema" in argv:
+        issuer = resolve_issuer(issuer)
+        mcp_url = os.environ.get("COROS_MCP_URL") or f"{issuer}/mcp"
 
     if "--schema" in argv:
         access = os.environ.get("COROS_MCP_ACCESS_TOKEN")
         if not access:
-            access, _ = refresh_access_token(os.environ["COROS_MCP_CLIENT_ID"],
-                                             os.environ["COROS_MCP_REFRESH_TOKEN"], issuer)
+            raise CorosMCPError("--schema requiere COROS_MCP_ACCESS_TOKEN: no renueva tokens para evitar perder la rotación")
         initialize(mcp_url, access)
         tools = list_tools(mcp_url, access)
         print(f"{len(tools)} herramientas en {mcp_url}:")
@@ -508,14 +552,25 @@ def main(argv=None):
             print(json.dumps(tool.get("inputSchema"), indent=2, ensure_ascii=False))
         return 0
 
-    nights, nuevo = fetch_sleep()
+    store = None
+    if os.environ.get("GITHUB_ACTIONS") == "true" and not os.environ.get("COROS_MCP_ACCESS_TOKEN"):
+        from coros_token_store import GitHubTokenStore, StateError
+        if os.environ.get("GITHUB_REF") != "refs/heads/main":
+            raise StateError("El estado MCP solo se actualiza desde main")
+        resolved = resolve_issuer(issuer)
+        store = GitHubTokenStore(os.environ.get("COROS_MCP_STATE_KEY"),
+                                 os.environ.get("GITHUB_TOKEN"), os.environ.get("GITHUB_REPOSITORY"),
+                                 os.environ.get("COROS_MCP_CLIENT_ID"),
+                                 os.environ.get("COROS_MCP_REFRESH_TOKEN"), resolved)
+        issuer = resolved
+    nights, nuevo = fetch_sleep(issuer=issuer, token_store=store)
     if "--dump" in argv:
         print(json.dumps(nights, indent=2, ensure_ascii=False))
     p = write_sleep(nights, opt("--out"))
     print(f"✓ {p} escrito ({len(nights)} noches con sueño)")
     if nights:
         print(f"  última: {nights[-1]['date']} → {nights[-1]['sleep_hours']} h")
-    if nuevo and nuevo != os.environ.get("COROS_MCP_REFRESH_TOKEN"):
+    if store is None and nuevo and nuevo != os.environ.get("COROS_MCP_REFRESH_TOKEN"):
         print("  ⚠ COROS rotó el refresh token: actualiza el secreto COROS_MCP_REFRESH_TOKEN.")
     return 0
 
@@ -528,4 +583,10 @@ if __name__ == "__main__":
         sys.exit(2)  # el workflow usa continue-on-error: el correo sale igual
     except KeyError as exc:
         print(f"✗ COROS MCP: falta la variable de entorno {exc}")
+        sys.exit(2)
+    except Exception as exc:
+        from coros_token_store import StateError
+        if not isinstance(exc, StateError):
+            raise
+        print(f"✗ COROS MCP: {exc}")
         sys.exit(2)
