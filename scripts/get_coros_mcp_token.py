@@ -117,6 +117,9 @@ def espera_codigo(puerto=PUERTO_CALLBACK, state="", timeout=ESPERA_SEGUNDOS):
 def main():
     issuer = (input(f"Issuer de COROS MCP [{coros_mcp.DEFAULT_ISSUER}]: ").strip()
               or coros_mcp.DEFAULT_ISSUER).rstrip("/")
+    issuer = coros_mcp.resolve_issuer(issuer)
+    print(f"Servidor regional seleccionado: {issuer}")
+    print("Guarda este servidor como variable COROS_MCP_ISSUER en GitHub Actions.")
     mcp_url = f"{issuer}/mcp"
 
     print("\n1) Registrando un cliente público en COROS (no hace falta client_secret)…")

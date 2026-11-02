@@ -254,7 +254,29 @@ COROS y te devuelve dos valores → secretos de GitHub:
 | Nombre | Valor |
 |---|---|
 | `COROS_MCP_CLIENT_ID` | el `client_id` del registro |
-| `COROS_MCP_REFRESH_TOKEN` | el refresh token (el workflow lo refresca solo) |
+| `COROS_MCP_REFRESH_TOKEN` | el refresh token inicial |
+
+El script muestra también el servidor regional seleccionado: configúralo como
+variable de Actions `COROS_MCP_ISSUER` para que ambos workflows usen el mismo.
+Para conservar el refresh token rotado se guarda un estado cifrado en
+`.github/coros-mcp-state.enc` de `main`. Los dos workflows están serializados y
+el nuevo token se guarda antes de consultar sueño. El archivo cifrado forma
+parte del historial del repositorio; nunca contiene el token en claro.
+
+Antes de ejecutar ambos workflows, genera una clave en **tu ordenador**:
+
+```bash
+python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+```
+
+Guárdala como **secreto de Actions** `COROS_MCP_STATE_KEY`; no la compartas ni
+la incluyas en el repositorio. Consérvala: si se pierde o cambia, el estado no
+se podrá descifrar y habrá que eliminar el estado cifrado y autorizar de nuevo.
+El token inicial y client_id siguen en sus secretos originales; al cambiarlos,
+se inicia un nuevo estado. No se debe probar la renovación desde varios clientes
+con el mismo token: COROS podría invalidarlo. Si falla el guardado tras una
+renovación, puede ser necesario volver a autorizar. Los workflows solo actualizan
+el estado desde `main`; si falta la clave, no renuevan el token.
 
 **Variables de entorno que entiende `scripts/coros_mcp.py`:**
 
@@ -268,8 +290,8 @@ COROS y te devuelve dos valores → secretos de GitHub:
 **Si COROS cambia algo**, el script se diagnostica solo:
 
 ```bash
-python scripts/coros_mcp.py --schema   # herramientas + inputSchema de querySleepData
-python scripts/coros_mcp.py --dump     # la respuesta cruda ya parseada
+COROS_MCP_ACCESS_TOKEN=... python scripts/coros_mcp.py --schema  # requiere access token vigente; no lo compartas
+# No ejecutes --dump con el mismo refresh token usado por Actions: puede rotarlo.
 ```
 
 Los argumentos de la llamada no están escritos a mano: se construyen leyendo el
@@ -454,7 +476,7 @@ Para probarlo ahora mismo sin esperar al cron: pestaña **Actions** →
 | `⚠ <sección> falló: …` en el log de "Update dashboard" | esa sección se quedó con los valores anteriores y el resto sí se actualizó; el mensaje dice qué pasó (lo normal: marcador borrado del HTML al editarlo a mano) |
 | La tarjeta de pasos o la de sueño no se actualizan | Coros no devuelve ese campo: `COROS_DEBUG=1 node --experimental-strip-types scripts/coros_fetch.mjs` y mira las claves reales (`STEPS_KEYS` / `SLEEP_KEYS`) |
 | `✗ COROS MCP: faltan COROS_MCP_CLIENT_ID / COROS_MCP_REFRESH_TOKEN` | no has hecho el paso 4.6; el correo sale igual, con la casilla de Sueño en `—` |
-| Sueño en `—` con los secretos ya puestos | mira el paso "Fetch sueño (COROS MCP oficial)" del log y, en local, `python scripts/coros_mcp.py --schema` y `--dump`: dicen qué herramientas ofrece el servidor y qué forma tiene la respuesta |
+| Sueño en `—` con los secretos ya puestos | mira el paso "Fetch sueño (COROS MCP oficial)" del log; no ejecutes diagnósticos locales que renueven el mismo token usado por Actions |
 | `token refresh failed` (sueño) | el refresh token caducó o COROS lo rotó: repite `python scripts/get_coros_mcp_token.py` y actualiza `COROS_MCP_REFRESH_TOKEN`. Si lo rota, el script lo avisa en el log |
 | Los tests fallan al añadir un marcador al HTML | falta darlo de alta en la lista `HTML_MARKERS`/`JS_MARKERS` de `tests/test_dashboard.py` |
 

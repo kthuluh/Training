@@ -483,7 +483,8 @@ class TestLoginLocal(unittest.TestCase):
             return True
 
         salida = io.StringIO()
-        with mock.patch.object(coros_mcp, "register_client", return_value="CID-123"), \
+        with mock.patch.object(coros_mcp, "resolve_issuer", return_value="https://mcp.coros.com"), \
+             mock.patch.object(coros_mcp, "register_client", return_value="CID-123"), \
              mock.patch.object(coros_mcp, "exchange_code",
                                return_value={"refresh_token": "RT-999", "expires_in": 3600}) as cambio, \
              mock.patch("builtins.input", return_value=""), \
@@ -520,3 +521,63 @@ class TestLoginLocal(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestIssuerDiscovery(unittest.TestCase):
+    def test_descubre_region_del_gateway(self):
+        response = io.BytesIO(json.dumps({'issuer': 'https://mcpeu.coros.com'}).encode())
+        with mock.patch.object(coros_mcp.urllib.request, 'urlopen', return_value=response):
+            self.assertEqual(coros_mcp.resolve_issuer(), 'https://mcpeu.coros.com')
+
+    def test_region_explicita_no_consulta_gateway(self):
+        with mock.patch.object(coros_mcp.urllib.request, 'urlopen') as request:
+            self.assertEqual(coros_mcp.resolve_issuer('https://mcpeu.coros.com/'),
+                             'https://mcpeu.coros.com')
+            request.assert_not_called()
+
+    def test_descubrimiento_rechaza_respuesta_no_confiable(self):
+        for response_body in (b'<html>oops</html>', b'{"issuer":"https://evil.example"}'):
+            with self.subTest(response=response_body), mock.patch.object(
+                    coros_mcp.urllib.request, 'urlopen', return_value=io.BytesIO(response_body)):
+                with self.assertRaises(coros_mcp.CorosMCPError):
+                    coros_mcp.resolve_issuer()
+
+class TestEstadoCifrado(unittest.TestCase):
+    def test_cifrado_relectura_y_reautorizacion(self):
+        from cryptography.fernet import Fernet
+        from coros_token_store import GitHubTokenStore
+        key = Fernet.generate_key().decode()
+        store = GitHubTokenStore(key, 'gh', 'owner/repo', 'cid', 'inicio', 'https://mcpeu.coros.com')
+        with mock.patch.object(store, '_request') as request:
+            store.save('rotado-secreto')
+            body = request.call_args.args[2]
+            self.assertNotIn('rotado-secreto', json.dumps(body))
+            request.return_value = {'sha': 'sha', 'content': body['content']}
+            self.assertEqual(store.load('inicio'), 'rotado-secreto')
+            self.assertEqual(store.sha, 'sha')
+            other = GitHubTokenStore(key, 'gh', 'owner/repo', 'cid2', 'nuevo', 'https://mcpeu.coros.com')
+            with mock.patch.object(other, '_request', return_value=request.return_value):
+                self.assertEqual(other.load('nuevo'), 'nuevo')
+
+    def test_clave_erronea_no_reutiliza_token_inicial(self):
+        from cryptography.fernet import Fernet
+        from coros_token_store import GitHubTokenStore, StateError
+        store = GitHubTokenStore(Fernet.generate_key().decode(), 'gh', 'o/r', 'cid', 'inicial', 'eu')
+        with mock.patch.object(store, '_request', return_value={'sha': 's', 'content': base64.b64encode(b'no es valido').decode()}):
+            with self.assertRaises(StateError):
+                store.load('inicial')
+
+    def test_guardado_antes_de_llamada_mcp(self):
+        store = mock.Mock()
+        store.load.return_value = 'viejo'
+        with mock.patch.object(coros_mcp, 'refresh_access_token', return_value=('at', 'nuevo')), \
+             mock.patch.object(coros_mcp, 'initialize', side_effect=coros_mcp.CorosMCPError('falló MCP')):
+            with self.assertRaises(coros_mcp.CorosMCPError):
+                coros_mcp.fetch_sleep(client_id='cid', refresh_token='inicial',
+                                      issuer='https://mcpeu.coros.com', token_store=store)
+        store.save.assert_called_once_with('nuevo')
+
+class TestMcpSse(unittest.TestCase):
+    def test_respuesta_sse(self):
+        with mock.patch.object(coros_mcp, '_http', return_value=coros_mcp._Response(
+                200, 'event: message\ndata: {"jsonrpc":"2.0","result":{"tools":[]}}\n\n')):
+            self.assertEqual(coros_mcp.mcp_call('https://mcpeu.coros.com/mcp', 'AT', 'tools/list')['result'], {'tools': []})
