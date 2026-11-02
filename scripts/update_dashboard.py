@@ -598,13 +598,13 @@ def apply_entreno(html, acts, coros, today, notes):
     if has_marker(html, "PLAN_STATUS"):
         if week is None:
             txt = f"<b>Plan:</b> arranca el {PLAN_START.day} de {MESES_LARGO[PLAN_START.month-1]} de {PLAN_START.year} (semana 1 del bloque 10K)."
-        elif week <= 18:
+        elif week <= 20:
             txt = (f"<b>Plan:</b> hoy {DIAS[today.weekday()]} {today.day} de {MESES_LARGO[today.month-1]} de {today.year} — "
-                   f"vas por la <b>semana {week} de 18</b> (bloque {bloque}). Arrancó el "
+                   f"vas por la <b>semana {week} de 20</b> (bloque {bloque}). Arrancó el "
                    f"{PLAN_START.day} de {MESES_LARGO[PLAN_START.month-1]} de {PLAN_START.year}.")
         else:
-            txt = f"<b>Plan:</b> las 18 semanas del plan ya terminaron (arrancó el {PLAN_START.day} de {MESES_LARGO[PLAN_START.month-1]} de {PLAN_START.year})."
-        html = set_html(html, "PLAN_STATUS", txt, notes, f"plan: semana {week} de 18")
+            txt = f"<b>Plan:</b> las 20 semanas del plan ya terminaron (arrancó el {PLAN_START.day} de {MESES_LARGO[PLAN_START.month-1]} de {PLAN_START.year})."
+        html = set_html(html, "PLAN_STATUS", txt, notes, f"plan: semana {week} de 20")
 
     # 1) Mejores marcas 10K / 21K (últimos 12 meses, calculadas de Strava)
     if acts and has_marker(html, "ENTRENO_PB"):
@@ -1051,8 +1051,8 @@ def apply_historial(html, acts, coros, today, notes):
             cuando = stats.fmt_day(coros_day) if coros_day else str(coros.get("date", "—"))
             bits.append(f"Coros hasta el {cuando} ({coros_bits_line(coros)})")
         week, bloque = plan_progress(today)
-        plan_txt = (f"Hoy es {DIAS[today.weekday()]} {today.day} de {MESES_LARGO[today.month-1]} y vas por la semana {week} de 18 "
-                    f"del plan ({bloque})." if week and week <= 18 else
+        plan_txt = (f"Hoy es {DIAS[today.weekday()]} {today.day} de {MESES_LARGO[today.month-1]} y vas por la semana {week} de 20 "
+                    f"del plan ({bloque})." if week and week <= 20 else
                     f"Hoy es {DIAS[today.weekday()]} {today.day} de {MESES_LARGO[today.month-1]}.")
         txt = (f"<b>Cobertura de datos:</b> {'; '.join(bits) if bits else 'sin datos nuevos'}. "
                f"El detalle semana a semana cubre las últimas {WEEKLY_CARDS} semanas completas. {plan_txt}")

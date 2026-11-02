@@ -294,7 +294,9 @@ el log de Actions te dice exactamente en qué paso.
 
 Todo el plan de entrenamiento (semana por semana) y la dieta están en
 `scripts/daily_brief.py`, en las listas `WEEKS` y `DIET` al principio del
-archivo — edítalas ahí directamente, sin tocar el resto del código.
+archivo. Las excepciones por fecha (incluido el 21K) están en `get_today_plan`;
+la tabla de entrenamiento del dashboard se edita también en
+`dashboard/dashboard-kthuluh.html`. El 21K de la Mitja de Granollers está previsto para el 24 de enero de 2027.
 
 Ahí arriba también están `HR_REST`/`HR_MAX` (zonas Karvonen) y
 `HR_REST_FROM_COROS`: si lo pones en `True`, las zonas del correo se recalculan
@@ -310,7 +312,7 @@ Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 |---|---|---|---|
 | Encabezado / pie | `UPDATED_DATE`, `FOOTER_INFO` | Strava + Coros | fecha y cobertura real de los datos |
 | Resumen general | `HERO_RHR`, `HERO_RATIO`, `RHR_CARD`, `RHR_CARD_SUB`, `HRV_CARD`, `HRV_CARD_SUB`, `STEPS_CARD`, `STEPS_CARD_SUB`, `SLEEP_14D_AVG`, `SLEEP_14D_SUB`, `LOAD_CAPTION`, `RHR30_LABELS`, `RHR30_DATA`, `LOAD14_LABELS`, `LOAD14_SHORT`, `LOAD14_LONG` | Coros | tarjetas del hero y de "Estado actual", gráficos de FC reposo (30 d) y carga (14 d) |
-| Entrenamiento | `PLAN_STATUS` | — | en qué semana de las 18 estás |
+| Entrenamiento | `PLAN_STATUS` | — | en qué semana de las 20 estás |
 | Entrenamiento | `ENTRENO_PB`, `ENTRENO_LAST4W`, `ENTRENO_VOL_NOTE`, `ENTRENO_STRENGTH_NOTE`, `CHARTVOL_LABELS`, `CHARTVOL_RUN`, `CHARTVOL_WALK`, `ZONES_META`, `ZONES_ROWS` | Strava | mejores marcas 10K/21K de los últimos 12 meses, resumen de las últimas 4 semanas, gráfico de volumen (8 semanas, carrera + caminatas apiladas), tabla de zonas Karvonen y aviso de fuerza |
 | Dieta | `DIETA_ACTIVITY`, `DIETA_CONTEXT` | Coros + Strava | pasos reales de Coros y contexto de la semana (km, sesiones, ratio de carga) |
 | Hábitos | `HABIT_01_BODY`, `HABIT_02_BODY`, `HABIT_03_BODY`, `HABIT_05_BODY` | Strava + Coros | última sesión de fuerza, noches más cortas, salidas que se pasan del techo de Z2 y rampa de volumen |
