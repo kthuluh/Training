@@ -72,7 +72,7 @@ def zones_for(hr_rest=HR_REST):
 
 ZONES = zones_for()
 
-# Plan semana a semana (18 semanas: 8 de bloque 10K + 10 de bloque 21K).
+# Plan semana a semana (20 semanas: 8 de bloque 10K + 12 de bloque 21K).
 # facil / calidad / larga = descripción de la sesión ese día.
 WEEKS = [
     # Bloque 1 — 10K (semanas 1-8)
@@ -84,16 +84,18 @@ WEEKS = [
     {"facil": "8 km Z2", "calidad": "4x1600m @4:30-4:35/km, rec. 3min", "larga": "15-16 km, con 5 km a ritmo objetivo (4:28-4:32/km)"},
     {"facil": "7 km Z2 suave", "calidad": "3x1000m @4:18-4:22/km, rec. 3min", "larga": "10 km Z2"},
     {"facil": "5 km Z2", "calidad": "4x400m suave + 2 progresivos a ritmo objetivo", "larga": None, "nota": "¡Carrera de 10K el domingo! Objetivo: <45:00."},
-    # Bloque 2 — 21K (semanas 9-18)
-    {"facil": "recuperación activa, suave", "calidad": None, "larga": "11-13 km Z2"},
-    {"facil": "recuperación activa, suave", "calidad": None, "larga": "11-13 km Z2"},
+    # Bloque 2 — 21K (semanas 9-20)
+    {"facil": "5 km Z2 suave", "calidad": "4x400m suave + 2 progresivos, sin forzar", "larga": "Cursa Bombers Barcelona — 10K", "nota": "Domingo 8 de noviembre: Cursa Bombers Barcelona (10K). La carrera sustituye la tirada larga."},
+    {"facil": "4-5 km Z2 muy suave, solo si estás recuperado", "calidad": None, "larga": "8-10 km Z2 suave, solo si estás recuperado", "nota": "Semana de recuperación tras Bombers: prioriza descanso si persiste la fatiga."},
     {"facil": "8-9 km Z2", "calidad": "tempo semanal @4:50-5:00/km", "larga": "14 km progresiva"},
-    {"facil": "8-9 km Z2", "calidad": "tempo semanal @4:50-5:00/km", "larga": "15-16 km progresiva"},
-    {"facil": "8-9 km Z2", "calidad": "tempo semanal @4:50-5:00/km", "larga": "17 km progresiva"},
+    {"facil": "5 km Z2 suave", "calidad": "4x400m suave + 2 progresivos, sin forzar", "larga": "Cursa Jean Bouin — 10K", "nota": "Domingo 29 de noviembre: Cursa Jean Bouin (10K). La carrera sustituye la tirada larga."},
+    {"facil": "4-5 km Z2 muy suave, solo si estás recuperado", "calidad": None, "larga": "10-12 km Z2 suave, solo si estás recuperado", "nota": "Semana de recuperación tras Jean Bouin: prioriza descanso si persiste la fatiga."},
     {"facil": "6 km Z2 suave (descarga -30%)", "calidad": None, "larga": "11 km"},
     {"facil": "8 km Z2", "calidad": "ritmo 21K específico", "larga": "17-19 km, con 10-12 km a 4:44-4:48/km"},
     {"facil": "8 km Z2", "calidad": "ritmo 21K específico", "larga": "17-19 km, con 10-12 km a 4:44-4:48/km"},
     {"facil": "6 km Z2 suave (descarga)", "calidad": None, "larga": "13 km suave"},
+    {"facil": "7-8 km Z2 suave", "calidad": "tempo controlado 3-4 km a 4:50-5:00/km", "larga": "14-15 km Z2 suave"},
+    {"facil": "5-6 km Z2 suave", "calidad": "3x1000m a ritmo 21K, sin forzar", "larga": "10-12 km Z2 suave"},
     {"facil": "4-5 km Z2 muy suave + strides", "calidad": None, "larga": None, "nota": "¡Carrera de 21K el domingo! Objetivo: 1:40:00."},
 ]
 
@@ -209,10 +211,20 @@ def get_today_plan(today):
     days_in = (today - PLAN_START).days
     if days_in < 0:
         return None  # el plan todavía no empieza
-    week_idx = min(days_in // 7, len(WEEKS) - 1)
+    if days_in >= len(WEEKS) * 7:
+        return {"week_num": len(WEEKS), "bloque": "21K", "session_type": "descanso",
+                "session_desc": "Plan completado. Recuperación tras la carrera: descansa o camina suave según sensaciones.",
+                "nota": "El plan finalizó el 24 de enero; prepara el siguiente ciclo antes de retomar la carga."}
+    week_idx = days_in // 7
     week = WEEKS[week_idx]
     session_type = DAY_TO_SESSION.get(today.weekday(), "descanso")
     session_desc = week.get(session_type)
+    # La carrera de 21K ya estaba prevista en la última semana; el domingo
+    # sustituye la tirada larga y utiliza su pauta nutricional.
+    if today == date(2027, 1, 24):
+        session_type, session_desc = "larga", "Mitja de Granollers — 21K. Objetivo orientativo: 1:40:00."
+    if today in (date(2026, 11, 5), date(2026, 11, 26)):
+        session_desc = "4 km Z2 muy suave o descanso si hay fatiga"
     if session_desc is None:
         session_type = "descanso"
         session_desc = "Descanso o fuerza 25-30 min (sentadilla, zancada, puente de glúteo, core)."

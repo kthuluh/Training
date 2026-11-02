@@ -299,7 +299,7 @@ class TestConDatos(unittest.TestCase):
         self.assertNotIn("<span>Carrera</span>", marked(self.html, "WEEKLY_CARDS"))
         self.assertIn("<span>Volumen</span>", marked(self.html, "CURRENT_WEEK"))
         # Estado del plan: 18 sep 2026 = semana 2 (arrancó el 7 sep)
-        self.assertIn("semana 2 de 18", marked(self.html, "PLAN_STATUS"))
+        self.assertIn("semana 2 de 20", marked(self.html, "PLAN_STATUS"))
 
     def test_dieta(self):
         contexto = marked(self.html, "DIETA_CONTEXT")
