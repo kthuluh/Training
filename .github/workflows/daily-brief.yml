@@ -67,7 +67,7 @@ jobs:
 
       # --- Sueño (API OFICIAL de COROS, mcp.coros.com) ---------------------
       # La librería de arriba (EvoLab) no tiene horas de sueño; el MCP oficial
-      # sí (`querySleepData`). Escribe coros_sleep.json, que coros_data.load()
+      # sí (`querySleepOverview`). Escribe coros_sleep.json, que coros_data.load()
       # superpone sobre coros_data.json.
       #
       # `continue-on-error: true`: si el token caduca o COROS cambia algo, el

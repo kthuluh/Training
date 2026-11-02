@@ -581,3 +581,46 @@ class TestMcpSse(unittest.TestCase):
         with mock.patch.object(coros_mcp, '_http', return_value=coros_mcp._Response(
                 200, 'event: message\ndata: {"jsonrpc":"2.0","result":{"tools":[]}}\n\n')):
             self.assertEqual(coros_mcp.mcp_call('https://mcpeu.coros.com/mcp', 'AT', 'tools/list')['result'], {'tools': []})
+
+class TestSleepOverview(unittest.TestCase):
+    def test_official_text_main_sleep_not_naps(self):
+        text = '''Sleep Overview
+
+2026-10-15
+Sleep Score: 91
+Daily Sleep: 8h 20min (incl. naps)
+Main Sleep (asleep): 7h 57min
+Main Sleep Window: 2026-10-15 00:28 - 2026-10-15 08:30
+Naps Total: 23 min
+
+2026-10-16
+Main Sleep (asleep): 6h 05min
+
+2026-10-17
+Daily Sleep: 1h 00min (incl. naps)
+'''
+        result = {'content': [{'type': 'text', 'text': text}]}
+        self.assertEqual(coros_mcp.parse_sleep(result), [
+            {'date': '2026-10-15', 'sleep_hours': 7.95},
+            {'date': '2026-10-16', 'sleep_hours': 6.08},
+        ])
+
+    def test_selects_overview_with_official_date_format(self):
+        tools = [{'name': 'querySleepData'}, {'name': 'querySleepOverview',
+                  'inputSchema': {'properties': {'startDate': {'type': 'string'},
+                                                 'endDate': {'type': 'string'}}}}]
+        result = {'content': [{'type': 'text', 'text': '2026-10-15\nMain Sleep (asleep): 7h 57min'}]}
+        with mock.patch.object(coros_mcp, 'initialize'), \
+             mock.patch.object(coros_mcp, 'list_tools', return_value=tools), \
+             mock.patch.object(coros_mcp, 'call_tool', return_value=result) as call:
+            nights, _ = coros_mcp.fetch_sleep(days=120, access_token='at', issuer='https://mcpeu.coros.com')
+        self.assertEqual(call.call_args.args[2], 'querySleepOverview')
+        args = call.call_args.args[3]
+        self.assertEqual(len(args['startDate']), 8)
+        self.assertEqual((date.today() - coros_mcp._to_date(args['startDate'])).days, 119)
+        self.assertEqual(nights[0]['sleep_hours'], 7.95)
+
+    def test_tool_error_not_silent(self):
+        with mock.patch.object(coros_mcp, 'mcp_call', return_value={'result': {'isError': True}}):
+            with self.assertRaises(coros_mcp.CorosMCPError):
+                coros_mcp.call_tool('url', 'at', 'querySleepOverview', {})
