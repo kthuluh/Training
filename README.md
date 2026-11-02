@@ -229,7 +229,7 @@ efímeros que se regeneran en cada workflow.
 El sueño no estaba en EvoLab, y la única otra puerta era la API **móvil** de
 Coros (`apieu.coros.com`), cuyo login desloguea la app del teléfono: inusable en
 un cron. Pero COROS publicó su **MCP oficial** (`https://mcp.coros.com/mcp`,
-OAuth con PKCE), y entre sus herramientas está `querySleepData`: *"sleep score,
+OAuth con PKCE), y entre sus herramientas está `querySleepOverview`: *"sleep score,
 main sleep duration, deep/light/REM ratios, wakefulness, sleep window and nap
 information"*. Es API oficial, no desloguea nada y se refresca con un refresh
 token igual que Strava.
@@ -388,7 +388,7 @@ Tres reglas que sigue el script (y que valen para todas las pestañas):
 * Las **horas de sueño ya no**: vienen del MCP oficial de COROS (4.6) en cuanto
   configures `COROS_MCP_CLIENT_ID` / `COROS_MCP_REFRESH_TOKEN`. Sin esos
   secretos, el bloque se queda con el último valor manual, como siempre.
-* Sueño profundo y fases (ligero / REM): `querySleepData` las devuelve, pero
+* Sueño profundo y fases (ligero / REM): `querySleepOverview` las devuelve, pero
   todavía no se pintan en ningún sitio; haría falta decidir dónde. El JSON de
   EvoLab sigue declarando `"sleep_phases": false` porque por ahí no salen.
 * El **objetivo** de sueño (7,5 h por defecto): es tuyo, no un dato que se
@@ -429,7 +429,7 @@ pasadas seguidas den el mismo HTML y que `PLAN_START`/`HR_REST`/`HR_MAX`/
 `SLEEP_TARGET_HOURS` sigan cuadrando con `scripts/daily_brief.py`.
 
 `tests/test_coros_mcp.py` cubre el sueño oficial: el parseo tolerante de
-`querySleepData` (segundos/minutos/horas, fechas `YYYYMMDD` o ISO, listas
+`querySleepOverview` (incluido el resumen textual oficial, con sueño principal sin siestas) y el formato JSON legacy (segundos/minutos/horas, fechas `YYYYMMDD` o ISO, listas
 anidadas), que los argumentos salgan del `inputSchema` del servidor, la
 secuencia HTTP completa (refresh → initialize → tools/list → tools/call) con un
 `requests.post` falso, la superposición sobre `coros_data.json` y que el correo

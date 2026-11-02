@@ -9,7 +9,7 @@ la API móvil (`apieu.coros.com`), cuyo login desloguea la app del teléfono —
 inaceptable en un cron que corre cada madrugada.
 
 COROS publicó en 2026 su **MCP oficial** (https://mcp.coros.com/mcp, OAuth con
-PKCE y `offline_access`), y entre sus herramientas está `querySleepData`:
+PKCE y `offline_access`), y entre sus herramientas está `querySleepOverview`:
 "sleep score, main sleep duration, deep/light/REM ratios, wakefulness, sleep
 window and nap information". Es API oficial, no desloguea nada y se refresca
 con un refresh token igual que Strava en este mismo repo.
@@ -19,12 +19,12 @@ Cómo se usa
 1. UNA VEZ, en tu ordenador:  `python scripts/get_coros_mcp_token.py`
    → te da `COROS_MCP_CLIENT_ID` y `COROS_MCP_REFRESH_TOKEN` (secretos de GitHub).
 2. Cada madrugada el workflow ejecuta este script, que refresca el token,
-   llama a `querySleepData` y escribe `coros_sleep.json`.
+   llama a `querySleepOverview` y escribe `coros_sleep.json`.
 3. `coros_data.load()` superpone ese fichero sobre `coros_data.json`, así que
    el correo **y** el dashboard se enteran sin más cambios.
 
 Diagnóstico (la primera vez, o si COROS cambia algo):
-    python scripts/coros_mcp.py --schema   # herramientas + inputSchema de querySleepData
+    python scripts/coros_mcp.py --schema   # herramientas + inputSchema de la herramienta de sueño
     python scripts/coros_mcp.py --dump     # la respuesta cruda de la llamada
 
 Variables de entorno:
@@ -64,7 +64,8 @@ DEFAULT_SCOPES = "openid offline_access mcp.tools"
 # así que en GitHub solo hace falta guardar el refresh token.
 DEFAULT_CLIENT_NAME = "Kthuluh daily brief"
 DEFAULT_REDIRECT_URI = "http://127.0.0.1:43123/callback"
-SLEEP_TOOL = "querySleepData"
+SLEEP_TOOL = "querySleepOverview"
+SLEEP_TOOLS = (SLEEP_TOOL, "querySleepData")
 PROTOCOL_VERSION = "2025-06-18"
 TIMEOUT = 30
 
@@ -281,11 +282,13 @@ def call_tool(mcp_url, access_token, name, arguments):
                       {"name": name, "arguments": arguments}, request_id=2).get("result")
     if not isinstance(result, dict):
         raise CorosMCPError(f"tools/call sin result: {_safe(result)}")
+    if result.get("isError"):
+        raise CorosMCPError("COROS rechazó la consulta de sueño (tools/call isError)")
     return result
 
 
 # ---------------------------------------------------------------------------
-# Argumentos de querySleepData (el esquema lo dice el servidor, no nosotros)
+# Argumentos de herramientas de sueño (compatibilidad con el esquema legacy)
 # ---------------------------------------------------------------------------
 
 _START_RE = re.compile(r"start|begin|from|since", re.I)
@@ -296,7 +299,7 @@ _DATE_RE = re.compile(r"date|day|time", re.I)
 def build_arguments(schema, start: date, end: date) -> dict:
     """Rellena el rango de fechas según el `inputSchema` que declare el servidor.
 
-    No sabemos (ni asumimos) cómo se llaman los parámetros de `querySleepData`:
+    Para el servidor legacy se leen los parámetros del esquema:
     aquí se leen del esquema y se emparejan por nombre. Si el esquema menciona
     un formato YYYYMMDD se manda así; si no, ISO.
     """
@@ -447,6 +450,23 @@ def result_payload(result: dict):
     return None
 
 
+def _parse_sleep_text(text):
+    """Resumen textual oficial: fecha de despertar y sueño principal sin siestas."""
+    dates = list(re.finditer(r"(?m)^\s*(\d{4}-\d{2}-\d{2}|\d{8})\s*$", text))
+    out = {}
+    for i, match in enumerate(dates):
+        end = dates[i + 1].start() if i + 1 < len(dates) else len(text)
+        section = text[match.end():end]
+        duration = re.search(r"(?im)^\s*Main Sleep\s*\(asleep\)\s*:\s*(?:(\d+)\s*h(?:ours?)?)?\s*(?:(\d+)\s*min(?:utes?)?)?", section)
+        if not duration or not any(duration.groups()):
+            continue
+        hours = int(duration.group(1) or 0) + int(duration.group(2) or 0) / 60
+        day = _to_date(match.group(1))
+        if day and 0.5 <= hours <= 16:
+            out[day.isoformat()] = round(hours, 2)
+    return out
+
+
 def parse_sleep(result: dict) -> list[dict]:
     """[{"date": "YYYY-MM-DD", "sleep_hours": 7.42}, ...] ordenado por fecha."""
     registros = extract_records(result_payload(result))
@@ -456,6 +476,10 @@ def parse_sleep(result: dict) -> list[dict]:
         if d is None or h is None:
             continue
         out[d.isoformat()] = h
+    if not out and isinstance(result, dict):
+        for block in result.get("content") or []:
+            if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
+                out.update(_parse_sleep_text(block["text"]))
     return [{"date": iso, "sleep_hours": out[iso]} for iso in sorted(out)]
 
 
@@ -500,24 +524,28 @@ def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=N
     initialize(mcp_url, access)
 
     tools = list_tools(mcp_url, access)
-    tool = next((t for t in tools if t.get("name") == SLEEP_TOOL), None)
+    tool = next((t for name in SLEEP_TOOLS for t in tools if t.get("name") == name), None)
     if tool is None:
         nombres = ", ".join(sorted(str(t.get("name")) for t in tools)) or "ninguna"
-        raise CorosMCPError(f"el servidor no ofrece {SLEEP_TOOL}. Herramientas: {nombres}")
+        raise CorosMCPError(f"el servidor no ofrece herramientas de sueño compatibles ({', '.join(SLEEP_TOOLS)}). Herramientas: {nombres}")
 
     hoy = date.today()
     args = build_arguments(tool.get("inputSchema"), hoy - timedelta(days=days - 1), hoy)
-    result = call_tool(mcp_url, access, SLEEP_TOOL, args)
+    if tool["name"] == "querySleepOverview":
+        # El formato oficial es yyyyMMdd, incluso si el esquema omite detalles.
+        args = {"startDate": (hoy - timedelta(days=days - 1)).strftime("%Y%m%d"),
+                "endDate": hoy.strftime("%Y%m%d")}
+    result = call_tool(mcp_url, access, tool["name"], args)
     return parse_sleep(result), nuevo_refresh
 
 
-def write_sleep(nights, path=None, source="COROS MCP oficial (querySleepData)"):
+def write_sleep(nights, path=None, source="COROS MCP oficial (sueño)"):
     payload = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": source,
         "days": nights,
-        "warnings": [] if nights else ["querySleepData no devolvió ninguna noche con horas."],
+        "warnings": [] if nights else ["COROS no devolvió ninguna noche con horas de sueño."],
     }
     p = Path(path or SLEEP_OUT_PATH)
     p.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -544,11 +572,11 @@ def main(argv=None):
         tools = list_tools(mcp_url, access)
         print(f"{len(tools)} herramientas en {mcp_url}:")
         for t in tools:
-            marca = "  ← sueño" if t.get("name") == SLEEP_TOOL else ""
+            marca = "  ← sueño" if t.get("name") in SLEEP_TOOLS else ""
             print(f"  · {t.get('name')}{marca}")
-        tool = next((t for t in tools if t.get("name") == SLEEP_TOOL), None)
+        tool = next((t for name in SLEEP_TOOLS for t in tools if t.get("name") == name), None)
         if tool:
-            print("\ninputSchema de querySleepData:")
+            print(f"\ninputSchema de {tool['name']}:")
             print(json.dumps(tool.get("inputSchema"), indent=2, ensure_ascii=False))
         return 0
 

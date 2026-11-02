@@ -22,7 +22,7 @@ COROS_DATA_PATH = Path(os.environ.get("COROS_DATA_PATH") or ROOT / "coros_data.j
 # no oficial de EvoLab no tiene horas de sueño; el MCP oficial sí, así que van
 # en ficheros distintos y aquí se superponen.
 SLEEP_PATH = Path(os.environ.get("COROS_SLEEP_PATH") or ROOT / "coros_sleep.json")
-SLEEP_SOURCE = "COROS MCP oficial (querySleepData)"
+SLEEP_SOURCE = "COROS MCP oficial (sueño)"
 
 # A partir de cuántas horas de antigüedad marcamos los datos como "de ayer".
 STALE_AFTER_H = 26
