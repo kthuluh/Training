@@ -402,7 +402,7 @@ def hard_runs(acts, hr_ceiling, today, days=28):
     streams). Solo cuenta salidas con dato de pulso.
     """
     since = today - timedelta(days=days)
-    window = [a for a in runs(acts) if a["date"] >= since]
+    window = [a for a in runs(acts) if since <= a["date"] <= today]
     with_hr = [a for a in window if a["avg_hr"]]
     if not with_hr:
         return {"n_runs": len(window), "n_with_hr": 0, "n_hard": 0,

@@ -170,6 +170,7 @@
   <button data-tab="habitos">Hábitos</button>
   <button data-tab="historial">Historial</button>
   <button data-tab="recos">Recomendaciones</button>
+  <button data-tab="seguimiento">Seguimiento del plan</button>
 </nav>
 
 <main>
@@ -206,7 +207,7 @@
   <section class="panel" id="entreno">
     <div class="flag info"><!--AUTO:PLAN_STATUS--><b>Plan:</b> hoy miércoles 4 de noviembre de 2026 — vas por la <b>semana 9 de 20</b> (bloque 21K). Arrancó el 7 de septiembre de 2026.<!--/AUTO:PLAN_STATUS--></div>
 
-    <div class="flag"><b>Punto de partida real:</b> <!--AUTO:ENTRENO_PB-->tu mejor 10K es <b>44:55</b> (4:30/km) y tu mejor 21K es <b>1:56:00</b> (5:30/km) (de los últimos 12 meses en Strava)<!--/AUTO:ENTRENO_PB--> — el sistema de zonas de Strava tenía cargado un 10K de referencia de 50:00, desactualizado respecto a tu marca real. <!--AUTO:ENTRENO_LAST4W-->Últimas 4 semanas registradas: ~2,8 salidas/semana, tirada larga hasta 10,1 km con desnivel (hasta 14 m), más 0,2 caminatas/semana (0,9 km/semana que también suman volumen).<!--/AUTO:ENTRENO_LAST4W--> <!--AUTO:ENTRENO_VOL_NOTE-->El volumen semanal (carrera + caminatas) ha subido rápido: de 26,3 km (semana del 10 ago) a 49,6 km (semana del 17 ago) en 1 semanas (+89%).<!--/AUTO:ENTRENO_VOL_NOTE--> Es un salto grande — el plan de abajo lo estabiliza antes de seguir subiendo.</div>
+    <div class="flag"><b>Punto de partida real:</b> <!--AUTO:ENTRENO_PB-->tu mejor 10K es <b>44:55</b> (4:30/km) y tu mejor 21K es <b>1:56:00</b> (5:30/km) (de los últimos 12 meses en Strava)<!--/AUTO:ENTRENO_PB--> — el sistema de zonas de Strava tenía cargado un 10K de referencia de 50:00, desactualizado respecto a tu marca real. <!--AUTO:ENTRENO_LAST4W-->Últimas 4 semanas registradas: ~2,8 salidas/semana, tirada larga hasta 10,1 km con desnivel (hasta 14 m), más 0,2 caminatas/semana (0,9 km/semana que también suman volumen).<!--/AUTO:ENTRENO_LAST4W--> <!--AUTO:ENTRENO_VOL_NOTE-->El volumen semanal (carrera + caminatas) ha subido rápido: de 26,3 km (semana del 10 ago) a 49,6 km (semana del 17 ago) en 1 semanas (+89%).<!--/AUTO:ENTRENO_VOL_NOTE--> Ajusta la progresión según tu recuperación.</div>
 
     <div class="section-title">Volumen semanal reciente (carrera + caminatas, km)</div>
     <div class="card"><div class="chart-wrap"><canvas id="chartVol"></canvas></div></div>
@@ -311,7 +312,7 @@
     <div class="habit-row">
       <div class="habit-num">02</div>
       <div class="habit-body">
-        <h3>Dormir más en los días de +20.000 pasos</h3>
+        <h3>Priorizar el descanso</h3>
         <p><!--AUTO:HABIT_02_BODY-->Tus noches más cortas de los últimos 90 días: 3 h 03 m el 10/10 (9.956 pasos); 3 h 42 m el 16/8; 4 h 03 m el 29/8. Son justo las noches en las que más necesitas recuperar — intenta adelantar la hora de acostarte esos días.<!--/AUTO:HABIT_02_BODY--></p>
       </div>
     </div>
@@ -325,8 +326,8 @@
     <div class="habit-row">
       <div class="habit-num">04</div>
       <div class="habit-body">
-        <h3>Actualizar el peso en Coros</h3>
-        <p>Tu peso real es 73 kg (confirmado), pero el perfil de Coros sigue marcando 70 kg. Actualízalo ahí y pesa siempre el mismo día/hora de la semana para que la tendencia sea fiable en ambas plataformas.</p>
+        <h3>Revisar el peso de referencia</h3>
+        <p>El plan usa 73 kg como referencia manual. Si ha cambiado, actualízalo; no podemos comprobar automáticamente el peso de tu perfil de Coros.</p>
       </div>
     </div>
     <div class="habit-row">
@@ -488,6 +489,11 @@
         <div class="metric"><span>FC reposo</span><span class="v">44 bpm</span></div>
       </div><!--/AUTO:CURRENT_WEEK-->
     </div>
+  </section>
+
+  <section class="panel" id="seguimiento">
+    <div class="section-title">Seguimiento del plan</div>
+    <!--AUTO:ADHERENCE--><div class="card">Pendiente de la próxima actualización de Strava.</div><!--/AUTO:ADHERENCE-->
   </section>
 
   <!-- RECOMENDACIONES -->

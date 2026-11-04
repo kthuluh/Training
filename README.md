@@ -346,7 +346,8 @@ Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 | Historial | `RACES` | Strava | carreras del año (`workout_type = Race`) |
 | Historial | `MONTHLY_LABELS`, `MONTHLY_VOL_RUN`, `MONTHLY_VOL_WALK`, `MONTHLY_RHR`, `MONTHLY_YEAR`, `MONTHLY_VOL_YEAR`, `MONTHLY_RHR_YEAR`, `MONTHLY_RANGE_TITLE`, `MONTHLY_CARDS` | Strava + Coros | gráficos mensuales (volumen a pie apilado y FC reposo) y tarjetas de mes |
 | Historial | `WEEKLY_LABELS`, `WEEKLY_VOL_RUN`, `WEEKLY_VOL_WALK`, `WEEKLY_MONDAYS`, `WEEKLY_RHR`, `WEEKLY_SLEEP`, `WEEKLY_CARDS`, `CURRENT_WEEK`, `HIST_COVERAGE_NOTE` | Strava + Coros | 12 semanas completas + la semana en curso, con sueño y FC reposo si Coros los trae |
-| Recomendaciones | `RECOS` | Strava + Coros | la lista entera, generada por reglas |
+| Recomendaciones | `RECOS` | Strava + Coros | la lista entera, generada por reglas y datos recientes |
+| Seguimiento | `ADHERENCE` | Plan + Strava | comparación orientativa del día anterior y alternativa segura para hoy |
 
 ### 7.0 Qué cuenta como volumen
 
@@ -505,3 +506,19 @@ tests/test_coros_mcp.py    tests del sueño oficial (fixtures, sin red)
 package.json / .npmrc      dependencias de JSR para Node
 requirements.txt           requests, para Strava
 ```
+
+### Seguimiento diario y carreras
+
+El correo y la pestaña Seguimiento comparan el tipo de sesión prevista ayer
+con lo registrado en Strava, sin afirmar que ritmo, distancia o intensidad se
+hayan cumplido. La fuerza en días de «descanso o fuerza» es opcional, no un
+incumplimiento; las alternativas no cambian el plan ni compensan sesiones
+perdidas, y las carreras mantienen prioridad. Si Strava falla o una sesión se
+hizo sin sincronizar, no se puede concluir que no se realizó.
+
+Historial muestra carreras marcadas como `Race` en Strava y, como excepción,
+actividades de carrera cuyo nombre contiene «Tast», etiquetadas como inferidas
+por el nombre. No se inventan resultados ni se cuentan como marcas personales
+si no están marcadas como carrera. Si el Tast no aparece, revisa su nombre,
+visibilidad y sincronización en Strava. Los avisos de rampa de las pestañas
+usan las últimas cuatro semanas completas, no el máximo del trimestre.
