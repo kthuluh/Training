@@ -1490,9 +1490,9 @@ def apply_adherence(html, acts, today, notes):
     from daily_brief import assess_adherence
     result = assess_adherence(today, acts)
     content = (f'<div class="card"><h3>Ayer · {esc((today - timedelta(days=1)).isoformat())}</h3>'
-               f'<p><b>Plan previsto:</b> {esc(result["yesterday_plan"])}</p><p>{esc(result["yesterday"])}</p><h3>Plan de hoy</h3><p>{esc(result["today"])}</p>'
+               f'<p><b>Plan previsto:</b> {esc(result["yesterday_plan"])}</p><p><b>Registrado en Strava:</b> {esc(result["recorded"])}</p><p>{esc(result["yesterday"])}</p><h3>Plan de hoy</h3><p>{esc(result["today"])}</p>'
                f'<h3>Alternativa orientativa</h3><p>{esc(result["advice"])}</p>'
-               '<p class="sub">Basado solo en actividades registradas en Strava; no verifica ritmos, fuerza no registrada ni sensaciones. No modifica el plan.</p></div>')
+               '<p class="sub">Basado solo en actividades registradas en Strava; no verifica cumplimiento exacto, actividades no sincronizadas ni sensaciones. No modifica el plan.</p></div>')
     return set_html(html, "ADHERENCE", content, notes, "seguimiento del plan actualizado")
 
 
