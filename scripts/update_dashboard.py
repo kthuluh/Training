@@ -814,7 +814,7 @@ def apply_habitos(html, acts, coros, today, notes):
 #
 # Todo sale de `stats.sleep_analysis`, que devuelve None en cuanto falta el
 # dato. Aquí no se redondea hacia arriba ni se rellena ningún hueco: si Coros no
-# trae `sleep_hours`, el bloque se queda exactamente como estaba en el HTML.
+# trae `sleep_hours`, el bloque muestra que no hay datos.
 # ---------------------------------------------------------------------------
 
 def build_sleep_cards(a):
@@ -886,9 +886,8 @@ def build_sleep_notes(a, coros):
             f"hay {stats.fmt_minutes(gap)} de diferencia — mucha irregularidad, y es lo primero que se puede arreglar."
         )
     bits.append(
-        "Coros solo expone <b>horas totales</b> de sueño por la API web: las fases "
-        "(ligero/profundo/REM) exigirían la API móvil con claves sacadas del APK y esa "
-        "llamada desloguea el reloj del móvil, así que quedan fuera del repo a propósito."
+        "El análisis usa la duración del sueño principal de COROS; las fases "
+        "(ligero/profundo/REM) no se analizan en este dashboard."
     )
     return " ".join(bits)
 
@@ -896,22 +895,20 @@ def build_sleep_notes(a, coros):
 def apply_sleep(html, coros, today, notes=None):
     """Tarjetas, gráfico y veredicto del sueño (pestaña Hábitos).
 
-    Si Coros no trae `sleep_hours` —la API web no tiene endpoint de sueño— no se
-    toca nada: el bloque conserva el texto manual y en `notes` queda dicho por
-    qué, con la pista de `COROS_DEBUG=1` para comprobarlo con tu cuenta.
+    Ventana de 30 días naturales terminada hoy. Si no hay datos de sueño,
+    se muestra un aviso y el gráfico deja huecos en lugar de datos antiguos.
     """
     notes = notes if notes is not None else []
     a = stats.sleep_analysis(coros, today, days=stats.SLEEP_WINDOW_DAYS, target=SLEEP_TARGET_HOURS)
 
     if a["n"] == 0:
-        if has_marker(html, "SLEEP_CARDS"):
-            notes.append(
-                "sueño (Hábitos): Coros no expone sleep_hours → el bloque se queda manual "
-                "(ejecuta el fetcher con COROS_DEBUG=1 para ver las claves reales de tu cuenta)"
-            )
-        return html
+        html = set_html(html, "SLEEP_TITLE", "Análisis del sueño — últimos 30 días · sin datos disponibles")
+        html = set_html(html, "SLEEP_CARDS", '<div class="card">Sin datos de sueño disponibles para esta ventana.</div>')
+        html = set_html(html, "SLEEP_VERDICT", "<b>Sueño:</b> sin datos suficientes para el análisis.")
+        html = set_html(html, "SLEEP_NOTES", "Comprueba el paso Fetch sueño de COROS; no se muestran cifras antiguas como si fueran actuales.")
+        notes.append("sueño (Hábitos): sin noches con dato en los últimos 30 días")
 
-    if has_marker(html, "SLEEP_TITLE"):
+    if a["n"] and has_marker(html, "SLEEP_TITLE"):
         html = replace_marked_html(
             html, "SLEEP_TITLE",
             f"Análisis del sueño — últimos {a['days']} días "
@@ -929,24 +926,23 @@ def apply_sleep(html, coros, today, notes=None):
     verdict = stats.sleep_verdict(a)
     if verdict:
         html = set_html(html, "SLEEP_VERDICT", f"<b>Sueño:</b> {verdict}")
-    html = set_html(html, "SLEEP_NOTES", build_sleep_notes(a, coros))
+    if a["n"]:
+        html = set_html(html, "SLEEP_NOTES", build_sleep_notes(a, coros))
 
     # Gráfico: misma forma que el de FC reposo (30 días, null donde no hay dato),
     # con la línea del objetivo encima para que el hueco se vea de un vistazo.
     days = coros_data.by_date(coros)
-    last = [days[d] for d in sorted(days)[-a["days"]:]]
-    values = [stats.as_number(d.get("sleep_hours")) for d in last]
-    if any(v is not None for v in values):
-        if has_marker(html, "SLEEP30_LABELS", marker_html=False):
-            html = replace_marked(html, "SLEEP30_LABELS",
-                                  js_list([d["date"][5:].replace("-", "/") for d in last], quote=True))
-        if has_marker(html, "SLEEP30_DATA", marker_html=False):
-            html = replace_marked(html, "SLEEP30_DATA",
-                                  js_list([round(v, 2) if v is not None else None for v in values]))
-        if has_marker(html, "SLEEP30_TARGET", marker_html=False):
-            html = replace_marked(html, "SLEEP30_TARGET", js_list([a["target"]] * len(values)))
-        notes.append(f"gráfico de sueño: {sum(1 for v in values if v is not None)}/{len(values)} noches con dato")
-
+    last = [(today - timedelta(days=i)).isoformat() for i in range(a["days"] - 1, -1, -1)]
+    values = [stats.as_number(days.get(d, {}).get("sleep_hours")) for d in last]
+    if has_marker(html, "SLEEP30_LABELS", marker_html=False):
+        html = replace_marked(html, "SLEEP30_LABELS",
+                              js_list([d[5:].replace("-", "/") for d in last], quote=True))
+    if has_marker(html, "SLEEP30_DATA", marker_html=False):
+        html = replace_marked(html, "SLEEP30_DATA",
+                              js_list([round(v, 2) if v is not None else None for v in values]))
+    if has_marker(html, "SLEEP30_TARGET", marker_html=False):
+        html = replace_marked(html, "SLEEP30_TARGET", js_list([a["target"]] * len(values)))
+    notes.append(f"gráfico de sueño: {sum(1 for v in values if v is not None)}/{len(values)} noches con dato")
     return html
 
 

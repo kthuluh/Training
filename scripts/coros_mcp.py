@@ -341,6 +341,11 @@ def _to_date(value):
         return None
     if isinstance(value, (int, float)):
         n = float(value)
+        if n.is_integer() and 19000101 <= n <= 21001231:
+            try:
+                return datetime.strptime(str(int(n)), "%Y%m%d").date()
+            except ValueError:
+                return None
         if n > 1e12:      # milisegundos
             n /= 1000
         if n < 1e8:       # no es un epoch razonable
@@ -378,6 +383,11 @@ def _to_hours(value):
     try:
         n = float(value)
     except (TypeError, ValueError):
+        if isinstance(value, str):
+            match = re.fullmatch(r"\s*(?:(\d+)\s*h(?:ours?)?)?\s*(?:(\d+)\s*min(?:utes?)?)?\s*", value, re.I)
+            if match and any(match.groups()):
+                hours = int(match.group(1) or 0) + int(match.group(2) or 0) / 60
+                return round(hours, 2) if 0.5 <= hours <= 16 else None
         return None
     if n <= 0:
         return None
@@ -386,14 +396,34 @@ def _to_hours(value):
 
 
 def _hours_of(record: dict):
-    for key in _HOURS_KEYS:
+    for key in ("mainSleepMinutes", "mainSleepMinute", "mainSleepDurationMinutes",
+                "totalMinutes", "totalDurationMinutes", "sleepDurationMinutes", "durationMinutes"):
+        value = record.get(key)
+        if value is not None:
+            try:
+                hours = float(value) / 60
+                if 0.5 <= hours <= 16:
+                    return round(hours, 2)
+            except (ValueError, TypeError):
+                pass
+    for key in ("mainSleepSeconds", "totalDurationSeconds", "sleepDurationSeconds"):
+        value = record.get(key)
+        if value is not None:
+            try:
+                hours = float(value) / 3600
+                if 0.5 <= hours <= 16:
+                    return round(hours, 2)
+            except (ValueError, TypeError):
+                pass
+    for key in ("sleep_hours",) + _HOURS_KEYS:
         if key in record:
             h = _to_hours(record[key])
             if h is not None:
                 return h
-    for value in record.values():            # {"mainSleep": {"duration": 26400}}
+    for key in ("mainSleep", "mainSleepData", "nightSleep", "sleep"):
+        value = record.get(key)
         if isinstance(value, dict):
-            h = _to_hours(value)
+            h = _hours_of(value) or _to_hours(value)
             if h is not None:
                 return h
     return None
@@ -408,28 +438,37 @@ def _date_of(record: dict):
     return None
 
 
-def extract_records(obj, _depth=0):
-    """Busca la lista de noches dentro de una respuesta de forma arbitraria.
-
-    COROS no documenta la forma exacta, así que se recorre el JSON hasta dar con
-    una lista cuyos elementos tengan fecha y duración. Devuelve [] si no la hay.
-    """
-    if _depth > 6:
+def extract_records(obj, _depth=0, inherited_date=None):
+    """Extrae registros anidados, sin confundir siestas con sueño principal."""
+    if _depth > 10:
         return []
     if isinstance(obj, list):
-        if obj and all(isinstance(x, dict) for x in obj):
-            if any(_date_of(x) and _hours_of(x) for x in obj):
-                return obj
-        for item in obj:
-            found = extract_records(item, _depth + 1)
-            if found:
-                return found
-    elif isinstance(obj, dict):
-        for value in obj.values():
-            found = extract_records(value, _depth + 1)
-            if found:
-                return found
-    return []
+        return [r for item in obj for r in extract_records(item, _depth + 1, inherited_date)]
+    if isinstance(obj, str):
+        try:
+            parsed = json.loads(obj)
+        except ValueError:
+            parsed = None
+        if isinstance(parsed, (dict, list, str)) and parsed != obj:
+            return extract_records(parsed, _depth + 1, inherited_date)
+        return [{"date": day, "sleep_hours": hours} for day, hours in _parse_sleep_text(obj).items()]
+    if not isinstance(obj, dict):
+        return []
+    kind = str(obj.get("kind") or obj.get("type") or "").lower()
+    if "nap" in kind or obj.get("isNap") is True:
+        return []
+    day = _date_of(obj) or inherited_date
+    hours = _hours_of(obj)
+    if day and hours is not None:
+        return [{"date": day.isoformat(), "sleep_hours": hours}]
+    records = []
+    for key, value in obj.items():
+        if "nap" in key.lower() or "siesta" in key.lower():
+            continue
+        nested_date = _to_date(key) or day
+        if isinstance(value, (dict, list, str)) and key not in _DATE_KEYS:
+            records.extend(extract_records(value, _depth + 1, nested_date))
+    return records
 
 
 def result_payload(result: dict):
@@ -452,12 +491,12 @@ def result_payload(result: dict):
 
 def _parse_sleep_text(text):
     """Resumen textual oficial: fecha de despertar y sueño principal sin siestas."""
-    dates = list(re.finditer(r"(?m)^\s*(\d{4}-\d{2}-\d{2}|\d{8})\s*$", text))
+    dates = list(re.finditer(r"(?im)^[ \t]*(?:#{1,6}[ \t]*)?(?:sleep for[ \t]+|date[ \t]*:[ \t]*)?(\d{4}-\d{2}-\d{2}|\d{8})[ \t]*$", text))
     out = {}
     for i, match in enumerate(dates):
         end = dates[i + 1].start() if i + 1 < len(dates) else len(text)
         section = text[match.end():end]
-        duration = re.search(r"(?im)^\s*Main Sleep\s*\(asleep\)\s*:\s*(?:(\d+)\s*h(?:ours?)?)?\s*(?:(\d+)\s*min(?:utes?)?)?", section)
+        duration = re.search(r"(?im)^\s*Main Sleep(?:\s*\(asleep\))?\s*:\s*(?:(\d+)\s*h(?:ours?)?)?\s*(?:(\d+)\s*min(?:utes?)?)?", section)
         if not duration or not any(duration.groups()):
             continue
         hours = int(duration.group(1) or 0) + int(duration.group(2) or 0) / 60
@@ -486,6 +525,20 @@ def parse_sleep(result: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Orquestación
 # ---------------------------------------------------------------------------
+
+def sleep_response_shape(result):
+    """Diagnóstico sin fechas, valores sanitarios, textos ni credenciales."""
+    payload = result_payload(result)
+    blocks = (result or {}).get("content") or [] if isinstance(result, dict) else []
+    texts = [b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)]
+    flags = []
+    for word, pattern in (("fecha", r"\d{4}[-/]?\d{2}[-/]?\d{2}"),
+                          ("sueño-principal", r"main.?sleep|sueño principal"),
+                          ("duracion", r"duration|duraci[oó]n|\d+\s*(?:h|hours?|min)")):
+        if any(re.search(pattern, t, re.I) for t in texts):
+            flags.append(word)
+    return f"JSON={type(payload).__name__}; textos={len(texts)}; indicadores={','.join(flags) or 'ninguno'}"
+
 
 def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=None,
                 issuer=None, mcp_url=None, token_store=None):
@@ -530,13 +583,28 @@ def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=N
         raise CorosMCPError(f"el servidor no ofrece herramientas de sueño compatibles ({', '.join(SLEEP_TOOLS)}). Herramientas: {nombres}")
 
     hoy = date.today()
-    args = build_arguments(tool.get("inputSchema"), hoy - timedelta(days=days - 1), hoy)
-    if tool["name"] == "querySleepOverview":
-        # El formato oficial es yyyyMMdd, incluso si el esquema omite detalles.
-        args = {"startDate": (hoy - timedelta(days=days - 1)).strftime("%Y%m%d"),
-                "endDate": hoy.strftime("%Y%m%d")}
-    result = call_tool(mcp_url, access, tool["name"], args)
-    return parse_sleep(result), nuevo_refresh
+    first = hoy - timedelta(days=days - 1)
+    # Rangos acotados evitan servidores que limitan silenciosamente la consulta.
+    # No se vuelve a renovar el token al consultar cada tramo.
+    out = {}
+    start = first
+    shapes = []
+    while start <= hoy:
+        end = min(start + timedelta(days=29), hoy)
+        args = build_arguments(tool.get("inputSchema"), start, end)
+        if tool["name"] == "querySleepOverview":
+            args = {"startDate": start.strftime("%Y%m%d"), "endDate": end.strftime("%Y%m%d")}
+        result = call_tool(mcp_url, access, tool["name"], args)
+        for row in parse_sleep(result):
+            day = _to_date(row["date"])
+            if day and first <= day <= hoy:
+                out[row["date"]] = row
+        shapes.append(sleep_response_shape(result))
+        start = end + timedelta(days=1)
+    if not out:
+        # Sin datos de salud ni tokens: solo describe el tipo de respuesta.
+        print("COROS sueño: 0 noches interpretables. Estructura (sin datos personales): " + "; ".join(sorted(set(shapes))))
+    return [out[k] for k in sorted(out)], nuevo_refresh
 
 
 def write_sleep(nights, path=None, source="COROS MCP oficial (sueño)"):
@@ -595,7 +663,7 @@ def main(argv=None):
     if "--dump" in argv:
         print(json.dumps(nights, indent=2, ensure_ascii=False))
     p = write_sleep(nights, opt("--out"))
-    print(f"✓ {p} escrito ({len(nights)} noches con sueño)")
+    print(f"{'✓' if nights else '⚠'} {p} escrito ({len(nights)} noches con sueño)")
     if nights:
         print(f"  última: {nights[-1]['date']} → {nights[-1]['sleep_hours']} h")
     if store is None and nuevo and nuevo != os.environ.get("COROS_MCP_REFRESH_TOKEN"):
