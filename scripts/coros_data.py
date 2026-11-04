@@ -44,7 +44,8 @@ def load(path: Path | str | None = None, sleep_path: Path | str | None = None) -
             data = None
         if data is not None and not isinstance(data, dict):
             data = None
-    return overlay_sleep(data, load_sleep(sleep_path))
+    data = overlay_sleep(data, load_sleep(sleep_path))
+    return overlay_steps(data, load_steps(sleep_path))
 
 
 def load_sleep(path: Path | str | None = None) -> dict[str, float]:
@@ -77,6 +78,44 @@ def load_sleep(path: Path | str | None = None) -> dict[str, float]:
     return out
 
 
+def load_steps(path: Path | str | None = None) -> dict[str, int]:
+    """Pasos diarios del mismo fichero MCP; ausencia o error no inventan ceros."""
+    p = Path(path) if path else SLEEP_PATH
+    if not p.exists():
+        return {}
+    try:
+        payload = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    result = {}
+    for item in payload.get("health_days", []) if isinstance(payload, dict) else []:
+        if not isinstance(item, dict): continue
+        day, steps = _to_date(item.get("date")), item.get("steps")
+        if day and isinstance(steps, int) and not isinstance(steps, bool) and 0 <= steps <= 200000:
+            result[day.isoformat()] = steps
+    return result
+
+
+def overlay_steps(data, steps, today=None):
+    if not steps:
+        return data
+    out = dict(data) if isinstance(data, dict) else {}
+    days = {d["date"]: dict(d) for d in (out.get("days") or []) if isinstance(d, dict) and d.get("date")}
+    for day, value in steps.items():
+        days.setdefault(day, {"date": day, "has_data": True})["steps"] = value
+    out["days"] = [days[k] for k in sorted(days)]
+    today = today or date.today()
+    first = today - timedelta(days=13)
+    recent = [d["steps"] for d in out["days"] if first <= (_to_date(d["date"]) or date.min) <= today and isinstance(d.get("steps"), (int, float)) and not isinstance(d.get("steps"), bool)]
+    out["latest_14"] = dict(out.get("latest_14") or {})
+    out["latest_14"]["steps_avg"] = round(sum(recent) / len(recent), 1) if recent else None
+    out["available"] = {**(out.get("available") or {}), "steps": True}
+    recent_dates = [d["date"] for d in out["days"] if first <= (_to_date(d["date"]) or date.min) <= today and isinstance(d.get("steps"), (int, float)) and not isinstance(d.get("steps"), bool)]
+    out["steps_date"] = max(recent_dates) if recent_dates else None
+    out["steps_source"] = "COROS MCP oficial"
+    return out
+
+
 def overlay_sleep(data: dict | None, hours: dict[str, float], source: str = SLEEP_SOURCE):
     """Copia de `data` con las noches de `hours` fusionadas en `days`.
 
@@ -102,6 +141,23 @@ def overlay_sleep(data: dict | None, hours: dict[str, float], source: str = SLEE
         days.append({"date": iso, "sleep_hours": hours[iso], "has_data": True})
     days.sort(key=lambda d: str(d.get("date"))[:10] if isinstance(d, dict) else "")
     out["days"] = days
+    today = date.today()
+    first = today - timedelta(days=13)
+    recent = [d["sleep_hours"] for d in days if isinstance(d, dict) and first <= (_to_date(d.get("date")) or date.min) <= today and isinstance(d.get("sleep_hours"), (int, float)) and not isinstance(d.get("sleep_hours"), bool) and 0.5 <= d["sleep_hours"] <= 16]
+    out["latest_14"] = dict(out.get("latest_14") or {})
+    out["latest_14"]["sleep_hours_avg"] = round(sum(recent) / len(recent), 2) if recent else None
+    out["latest_14"]["sleep_n_days"] = len(recent)
+    # Actualiza las semanas existentes sin perder las métricas de EvoLab.
+    weeks = {w.get("week_start"): dict(w) for w in (out.get("weeks") or []) if isinstance(w, dict) and w.get("week_start")}
+    grouped = {}
+    for iso, value in hours.items():
+        d = _to_date(iso)
+        if d:
+            monday = (d - timedelta(days=d.weekday())).isoformat()
+            grouped.setdefault(monday, []).append(value)
+    for monday, values in grouped.items():
+        weeks.setdefault(monday, {"week_start": monday})["sleep_hours"] = round(sum(values) / len(values), 2)
+    out["weeks"] = [weeks[k] for k in sorted(weeks)]
 
     ultimo = max(hours)
     latest = out.get("latest") if isinstance(out.get("latest"), dict) else None
@@ -111,8 +167,8 @@ def overlay_sleep(data: dict | None, hours: dict[str, float], source: str = SLEE
         out["latest"] = latest
     elif latest is None or not latest.get("date"):
         out["latest"] = {"date": ultimo, "sleep_hours": hours[ultimo], "has_data": True}
-    if out.get("sleep_hours") is None:
-        out["sleep_hours"] = hours[ultimo]   # clave plana legacy: la lee summary()
+    out["sleep_hours"] = hours[ultimo]  # última noche MCP, aunque EvoLab tenga otra fecha
+    out["sleep_date"] = ultimo
 
     available = dict(out.get("available") or {})
     available["sleep_hours"] = True
@@ -188,7 +244,7 @@ def summary(data: dict | None) -> dict:
         "resting_hr": pick("resting_hr"),
         "hrv": pick("hrv"),
         "hrv_base": pick("hrv_base"),
-        "sleep_hours": pick("sleep_hours"),
+        "sleep_hours": (data or {}).get("sleep_hours") if (data or {}).get("sleep_source") else pick("sleep_hours"),
         "load_short": pick("load_short"),
         "load_long": pick("load_long"),
         "load_ratio": pick("load_ratio"),
