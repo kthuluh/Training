@@ -167,6 +167,10 @@ class TestSecuenciaHTTP(unittest.TestCase):
     MCP = "https://mcpeu.coros.com/mcp"
 
     def setUp(self):
+        date_patch = mock.patch.object(coros_mcp, "date", wraps=date)
+        mocked_date = date_patch.start()
+        mocked_date.today.return_value = TODAY
+        self.addCleanup(date_patch.stop)
         self.llamadas = []
         self.respuestas = {
             f"{self.ISSUER}/oauth2/token": {"access_token": "AT", "refresh_token": "RT2",
@@ -615,7 +619,8 @@ Daily Sleep: 1h 00min (incl. naps)
              mock.patch.object(coros_mcp, 'call_tool', return_value=result) as call:
             nights, _ = coros_mcp.fetch_sleep(days=120, access_token='at', issuer='https://mcpeu.coros.com')
         self.assertEqual(call.call_args.args[2], 'querySleepOverview')
-        args = call.call_args.args[3]
+        self.assertEqual(call.call_count, 4)
+        args = call.call_args_list[0].args[3]
         self.assertEqual(len(args['startDate']), 8)
         self.assertEqual((date.today() - coros_mcp._to_date(args['startDate'])).days, 119)
         self.assertEqual(nights[0]['sleep_hours'], 7.95)
@@ -624,3 +629,36 @@ Daily Sleep: 1h 00min (incl. naps)
         with mock.patch.object(coros_mcp, 'mcp_call', return_value={'result': {'isError': True}}):
             with self.assertRaises(coros_mcp.CorosMCPError):
                 coros_mcp.call_tool('url', 'at', 'querySleepOverview', {})
+
+class TestFormatosAdicionales(unittest.TestCase):
+    def test_json_fechas_numericas_y_objeto_individual_anidado(self):
+        result = {"structuredContent": {"data": {"happenDay": 20261031,
+                   "mainSleep": {"mainSleepMinutes": 455}, "napSleep": {"duration": 60}}}}
+        self.assertEqual(coros_mcp.parse_sleep(result), [{"date": "2026-10-31", "sleep_hours": 7.58}])
+
+    def test_segundos_y_texto(self):
+        result = {"structuredContent": {"days": [
+            {"date": "20261030", "mainSleepSeconds": 25200},
+            {"date": "20261031", "mainSleepDuration": "7h 57min"}]}}
+        self.assertEqual(coros_mcp.parse_sleep(result), [
+            {"date": "2026-10-30", "sleep_hours": 7.0},
+            {"date": "2026-10-31", "sleep_hours": 7.95}])
+
+    def test_siestas_y_sin_datos_no_se_convierten_en_sueno(self):
+        result = {"structuredContent": {"data": [{"date": "20261031", "napSleep": {"duration": 120}}]}}
+        self.assertEqual(coros_mcp.parse_sleep(result), [])
+
+    def test_diagnostico_no_contiene_datos(self):
+        shape = coros_mcp.sleep_response_shape({"content": [{"type": "text", "text": "2026-10-31 Main Sleep: 7h 30min secreto"}]})
+        self.assertIn("fecha", shape)
+        self.assertNotIn("2026", shape)
+        self.assertNotIn("secreto", shape)
+
+    def test_fecha_texto_y_variacion_main_sleep(self):
+        text = 'Sleep for 2026-10-31\nMain sleep: 7h 30min\n'
+        self.assertEqual(coros_mcp.parse_sleep({'content': [{'type': 'text', 'text': text}]}),
+                         [{'date': '2026-10-31', 'sleep_hours': 7.5}])
+
+    def test_json_dentro_del_contenido_estructurado(self):
+        response = {"structuredContent": {"data": json.dumps({"sleep": {"happenDay": 20261031, "mainSleepMinutes": 450}})}}
+        self.assertEqual(coros_mcp.parse_sleep(response), [{"date": "2026-10-31", "sleep_hours": 7.5}])

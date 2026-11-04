@@ -387,7 +387,8 @@ Tres reglas que sigue el script (y que valen para todas las pestañas):
 * Las calorías y macros de la pestaña Dieta, que dependen del peso.
 * Las **horas de sueño ya no**: vienen del MCP oficial de COROS (4.6) en cuanto
   configures `COROS_MCP_CLIENT_ID` / `COROS_MCP_REFRESH_TOKEN`. Sin esos
-  secretos, el bloque se queda con el último valor manual, como siempre.
+  secretos o sin noches disponibles en la ventana, el bloque indica que no hay datos;
+  el gráfico muestra huecos en los 30 días naturales terminados hoy.
 * Sueño profundo y fases (ligero / REM): `querySleepOverview` las devuelve, pero
   todavía no se pintan en ningún sitio; haría falta decidir dónde. El JSON de
   EvoLab sigue declarando `"sleep_phases": false` porque por ahí no salen.
@@ -436,8 +437,8 @@ secuencia HTTP completa (refresh → initialize → tools/list → tools/call) c
 pinte la casilla y la línea de 30 noches.
 
 También cubren el bloque de sueño (media, deuda, tendencia 7 vs 7 y los tres
-veredictos según el objetivo), que con `sleep_hours` a `null` el bloque manual no
-se mueva ni una coma, y el propio `scripts/coros_fetch.mjs`: se ejecuta con
+veredictos según el objetivo), que con `sleep_hours` a `null` se indique la
+ausencia de datos sin mostrar valores antiguos, y el propio `scripts/coros_fetch.mjs`: se ejecuta con
 `COROS_FIXTURE` y comprueba que `sleepDuration` acaba en `sleep_hours` y que
 `sleep_phases` sale `false`. Ese último necesita `node` en el PATH (el workflow
 lo instala); **no** necesita `npm install`, porque la ruta de fixture no llega a

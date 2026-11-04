@@ -368,7 +368,7 @@ class TestConDatos(unittest.TestCase):
 class TestSinDatos(unittest.TestCase):
     def test_sin_strava_ni_coros_solo_cambia_fecha_y_pie(self):
         html, notes = run_all_sections(new_html(), [], None)
-        original = new_html()
+        original = ud.apply_sleep(new_html(), None, TODAY)
         # Normalizamos los dos bloques que sí se actualizan siempre
         for marker in ("UPDATED_DATE", "FOOTER_INFO"):
             original = ud.replace_marked_html(original, marker, "X")
@@ -395,7 +395,7 @@ class TestSinDatos(unittest.TestCase):
         self.assertTrue(all(v is None for v in ahora[len(esperado):]),
                         "las semanas sin dato se quedan en blanco, no en 0")
         self.assertEqual(ud.parse_js_array(marked_js(html, "MONTHLY_RHR")),
-                         ud.parse_js_array(marked_js(antes, "MONTHLY_RHR")))
+                         ud.parse_js_array(marked_js(antes, "MONTHLY_RHR"))[:TODAY.month])
 
     def test_meses_sin_datos_conservan_la_tarjeta_manual(self):
         """Un mes sin datos en Strava conserva su tarjeta manual; con datos, no.
@@ -735,25 +735,31 @@ class TestSueño(unittest.TestCase):
         self.assertTrue(any(n.startswith("sueño:") for n in notes))
         self.assertTrue(any("gráfico de sueño" in n for n in notes))
 
-    # 7 · sin sleep_hours, ni una coma del bloque manual
-    def test_sin_sueño_se_conserva_el_bloque_manual(self):
+    # 7 · sin sueño, no deben mostrarse cifras históricas como actuales
+    def test_sin_sueno_muestra_aviso_y_ventana_actual(self):
         antes = new_html()
         coros = build_coros()
         for d in coros["days"]:
             d["sleep_hours"] = None
         coros["latest_14"]["sleep_hours_avg"] = None
         coros["available"]["sleep_hours"] = False
-
         html, notes = run_all_sections(antes, stats.normalize(build_activities()), coros)
+        self.assertIn("sin datos disponibles", marked(html, "SLEEP_TITLE"))
+        self.assertIn("Sin datos", marked(html, "SLEEP_CARDS"))
+        self.assertEqual(ud.parse_js_array(marked_js(html, "SLEEP30_DATA")), [None] * 30)
+        labels = ud.parse_js_array(marked_js(html, "SLEEP30_LABELS"))
+        self.assertEqual(labels[-1], TODAY.strftime("%m/%d"))
+        self.assertTrue(any("sin noches con dato" in n for n in notes))
 
-        for marker in ("SLEEP_TITLE", "SLEEP_CARDS", "SLEEP_VERDICT", "SLEEP_NOTES"):
-            self.assertEqual(marked(html, marker), marked(antes, marker), marker)
-        for marker in ("SLEEP30_LABELS", "SLEEP30_DATA", "SLEEP30_TARGET"):
-            self.assertEqual(marked_js(html, marker), marked_js(antes, marker), marker)
-
-        aviso = [n for n in notes if "Coros no expone sleep_hours" in n]
-        self.assertEqual(len(aviso), 1, "debe quedar dicho por qué no se pintó")
-        self.assertIn("COROS_DEBUG=1", aviso[0])
+    def test_grafico_siempre_ventana_actual_con_huecos(self):
+        coros = {"days": [{"date": (TODAY - timedelta(days=2)).isoformat(), "sleep_hours": 7.5},
+                          {"date": (TODAY - timedelta(days=40)).isoformat(), "sleep_hours": 6.0},
+                          {"date": (TODAY + timedelta(days=1)).isoformat(), "sleep_hours": 8.0}]}
+        html = ud.apply_sleep(new_html(), coros, TODAY)
+        values = ud.parse_js_array(marked_js(html, "SLEEP30_DATA"))
+        self.assertEqual(len(values), 30)
+        self.assertEqual(values[-3:], [7.5, None, None])
+        self.assertEqual(sum(v is not None for v in values), 1)
 
 
 class TestFetcherCoros(unittest.TestCase):
