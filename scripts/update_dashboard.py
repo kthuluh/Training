@@ -1159,11 +1159,12 @@ def apply_historial(html, acts, coros, today, notes):
     # 2) Carreras del año (Strava, workout_type = Race)
     if has_marker(html, "RACES"):
         year_races = stats.races(acts, year=today.year)
-        # El Tast puede llegar como entrenamiento normal de Strava. Solo se
-        # infiere por nombre explícito; no se modifica la actividad ni los PB.
+        # Carreras no etiquetadas como Race: conservar la excepción del Tast
+        # e identificar también nombres que contengan «cursa». La inferencia
+        # no modifica Strava ni se usa para mejores marcas personales.
         for a in acts:
             if (a["is_run"] and not a["race"] and a["km"] > 0 and a["date"].year == today.year
-                    and a["date"] <= today and re.search(r"\btast\b", a["name"], re.I)):
+                    and a["date"] <= today and re.search(r"\btast\b|cursa", a["name"], re.I)):
                 year_races.append({"name": a["name"] + " (identificada por nombre)", "date": a["date"],
                                    "km": a["km"], "time_s": a["moving_time"] or None})
         year_races = [r for r in year_races if r["date"] <= today]
