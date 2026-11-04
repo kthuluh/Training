@@ -239,7 +239,7 @@ class TestMarkers(unittest.TestCase):
         "SLEEP_TITLE", "SLEEP_CARDS", "SLEEP_VERDICT", "SLEEP_NOTES", "HIST_COVERAGE_NOTE",
         "TREND_VOL_CARD", "TREND_RHR_CARD", "TREND_SLEEP_CARD", "TREND_VERDICT", "RACES",
         "MONTHLY_VOL_YEAR", "MONTHLY_RHR_YEAR", "MONTHLY_RANGE_TITLE", "MONTHLY_CARDS",
-        "WEEKLY_CARDS", "CURRENT_WEEK", "RECOS",
+        "WEEKLY_CARDS", "CURRENT_WEEK", "RECOS", "ADHERENCE",
     ]
     JS_MARKERS = [
         "RHR30_LABELS", "RHR30_DATA", "LOAD14_LABELS", "LOAD14_SHORT", "LOAD14_LONG",
@@ -327,8 +327,8 @@ class TestConDatos(unittest.TestCase):
         # 12 tarjetas semanales + la de la semana en curso aparte
         self.assertEqual(marked(self.html, "WEEKLY_CARDS").count('class="wcard'), ud.WEEKLY_CARDS)
         self.assertIn("en curso", marked(self.html, "CURRENT_WEEK"))
-        # La rampa de volumen del fixture (10 → 31 km) tiene que salir arriba
-        self.assertRegex(marked(self.html, "ENTRENO_VOL_NOTE"), r"31,\d km \(semana del")
+        # No se conserva una rampa histórica fuera de las cuatro semanas recientes.
+        self.assertNotIn("17 ago", marked(self.html, "ENTRENO_VOL_NOTE"))
         # Tendencia: las 3 tarjetas con datos
         self.assertIn("km/sem", marked(self.html, "TREND_VOL_CARD"))
         self.assertIn("bpm", marked(self.html, "TREND_RHR_CARD"))
@@ -337,7 +337,7 @@ class TestConDatos(unittest.TestCase):
 
     def test_recomendaciones(self):
         recos = marked(self.html, "RECOS")
-        self.assertIn("Salto fuerte de volumen reciente", recos)
+        self.assertNotIn("Salto fuerte de volumen reciente", recos)
         self.assertIn("Fuerza parada", recos)
         self.assertGreaterEqual(recos.count('class="rec'), 5)
 
@@ -368,7 +368,10 @@ class TestConDatos(unittest.TestCase):
 class TestSinDatos(unittest.TestCase):
     def test_sin_strava_ni_coros_solo_cambia_fecha_y_pie(self):
         html, notes = run_all_sections(new_html(), [], None)
-        original = ud.apply_sleep(new_html(), None, TODAY)
+        original = ud.apply_habitos(new_html(), [], None, TODAY, [])
+        original = ud.apply_sleep(original, None, TODAY)
+        original = ud.apply_recos(original, [], None, TODAY, [])
+        original = ud.set_html(original, "RACES", "<p>Sin carreras identificadas en Strava este año. Marca la actividad como carrera o revisa su sincronización.</p>")
         # Normalizamos los dos bloques que sí se actualizan siempre
         for marker in ("UPDATED_DATE", "FOOTER_INFO"):
             original = ud.replace_marked_html(original, marker, "X")

@@ -20,6 +20,8 @@ Variables de entorno requeridas (se configuran como GitHub Secrets):
 import os
 import smtplib
 import ssl
+from html import escape
+from zoneinfo import ZoneInfo
 from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -130,14 +132,20 @@ def strava_access_token():
 
 
 def strava_activities(access_token, after_epoch, before_epoch):
-    resp = requests.get(
-        "https://www.strava.com/api/v3/athlete/activities",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"after": after_epoch, "before": before_epoch, "per_page": 50},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    return resp.json()
+    out = []
+    for page in range(1, 11):
+        resp = requests.get(
+            "https://www.strava.com/api/v3/athlete/activities",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"after": after_epoch, "before": before_epoch, "per_page": 200, "page": page},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        batch = resp.json()
+        out.extend(batch)
+        if len(batch) < 200:
+            return out
+    raise RuntimeError("Strava: demasiadas actividades para completar el periodo")
 
 
 def fmt_pace(distance_m, moving_time_s):
@@ -149,35 +157,21 @@ def fmt_pace(distance_m, moving_time_s):
 
 
 def get_strava_summary(today):
-    token = strava_access_token()
+    # Límites locales: UTC cambia con el horario de verano en España.
+    zone = ZoneInfo("Europe/Madrid")
     yesterday = today - timedelta(days=1)
-
-    y_start = int(datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc).timestamp())
-    y_end = int(datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).timestamp())
-    yesterday_acts = strava_activities(token, y_start, y_end)
-
-    week_start = int(datetime.combine(today - timedelta(days=7), datetime.min.time(), tzinfo=timezone.utc).timestamp())
-    week_acts = strava_activities(token, week_start, y_end)
-    # Volumen a pie: carrera Y caminatas/senderismo, igual que en el dashboard.
-    # Lo que no es andar (bici, natación…) queda fuera a propósito.
-    week_km = sum(
-        a["distance"] for a in week_acts
-        if str(a.get("sport_type") or a.get("type") or "").lower() in stats.FOOT_TYPES
-    ) / 1000
-
-    if not yesterday_acts:
-        y_text = "Descanso — no se registró actividad."
-    else:
-        parts = []
-        for a in yesterday_acts:
-            dist_km = a["distance"] / 1000
-            parts.append(
-                f"{a['name']} ({a['type']}): {dist_km:.1f} km, {fmt_pace(a['distance'], a['moving_time'])}, "
-                f"{a['total_elevation_gain']:.0f} m desnivel"
-            )
-        y_text = " | ".join(parts)
-
-    return {"yesterday": y_text, "week_km": round(week_km, 1)}
+    start = int(datetime.combine(today - timedelta(days=7), datetime.min.time(), tzinfo=zone).timestamp())
+    end = int(datetime.combine(today, datetime.min.time(), tzinfo=zone).timestamp())
+    try:
+        raw = strava_activities(strava_access_token(), start, end)
+        acts = [a for a in stats.normalize(raw) if today - timedelta(days=7) <= a["date"] < today]
+    except (requests.RequestException, KeyError, ValueError, RuntimeError) as exc:
+        print(f"Strava no disponible para el seguimiento: {type(exc).__name__}")
+        return {"yesterday": "Datos de Strava no disponibles.", "week_km": "—", "activities": None}
+    yesterday_acts = [a for a in acts if a["date"] == yesterday]
+    y_text = " | ".join(f"{a['name']} ({a['type']}): {a['km']:.1f} km" for a in yesterday_acts)
+    return {"yesterday": y_text or "No hay actividad registrada en Strava.",
+            "week_km": round(sum(a["km"] for a in acts if a["is_foot"]), 1), "activities": acts}
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +229,48 @@ def get_today_plan(today):
         "session_desc": session_desc,
         "nota": week.get("nota"),
     }
+
+
+def assess_adherence(today, acts):
+    """Comparación orientativa por tipo, no verifica intensidad ni registros externos."""
+    yesterday = today - timedelta(days=1)
+    previous, planned = get_today_plan(yesterday), get_today_plan(today)
+    if not previous or not planned or yesterday < PLAN_START or yesterday >= PLAN_START + timedelta(weeks=len(WEEKS)):
+        return {"yesterday": "Ayer no había una sesión dentro del plan.", "yesterday_plan": "Fuera del plan.", "today": (planned or {}).get("session_desc", "Plan aún no iniciado."), "advice": "Sin comparación disponible."}
+    if acts is None:
+        return {"yesterday": "No se pudo consultar Strava; no se puede determinar el cumplimiento.", "yesterday_plan": previous["session_desc"], "today": planned["session_desc"], "advice": "Mantén el plan solo si te encuentras bien; comprueba tus registros."}
+    seen = [a for a in acts if a.get("date") == yesterday]
+    running = [a for a in seen if a.get("is_run")]
+    strength = [a for a in seen if a.get("is_strength")]
+    prev_type = previous["session_type"]
+    optional_run = prev_type != "descanso" and "o descanso" in previous["session_desc"].lower()
+    if prev_type == "descanso":
+        status = ("Ayer se registró fuerza; era opcional en el plan." if strength else
+                  "Ayer no consta fuerza en Strava; era opcional y puede no haberse registrado.")
+        if running:
+            status += " Además, se registró una carrera en ese día flexible."
+    elif optional_run and not running:
+        status = "Ayer no consta el rodaje opcional; el descanso también estaba previsto como opción."
+    elif running:
+        status = "Ayer se registró una carrera; solo se comprueba el tipo, no el ritmo ni el cumplimiento completo."
+    else:
+        status = "Ayer no aparece la carrera prevista en Strava; podría no haberse registrado o sincronizado."
+    race_today = today in (date(2026, 11, 8), date(2026, 11, 29), date(2027, 1, 24))
+    if race_today:
+        advice = "Día de carrera: no recuperes sesiones perdidas; ajusta el esfuerzo a tus sensaciones."
+    elif prev_type != "descanso" and not running and not optional_run:
+        advice = "No acumules la sesión perdida: mantén lo previsto si estás recuperado, o sustituye la calidad por descanso o rodaje suave."
+    elif prev_type == "descanso" and not strength and planned["session_type"] == "descanso":
+        advice = "Si estás recuperado, puedes hacer 20–25 min de fuerza suave opcional; si hay fatiga, descansa."
+    elif prev_type == "descanso" and not strength and not running:
+        advice = "La fuerza era opcional: no la acumules hoy. Mantén lo previsto si estás recuperado o elige descanso o rodaje suave si notas fatiga."
+    elif running and any(a.get("km", 0) >= 10 for a in running) and planned["session_type"] in ("calidad", "facil"):
+        advice = "Tras una salida larga, si notas fatiga, sustituye la sesión por rodaje Z2 suave o descanso; no intentes compensar kilómetros."
+    elif prev_type == "descanso" and running and planned["session_type"] == "calidad":
+        advice = "Ayer hubo carrera en día flexible: si fue exigente o hay fatiga, sustituye la calidad por Z2 suave o descanso."
+    else:
+        advice = "Mantén la sesión prevista si te encuentras bien; ante dolor o fatiga, prioriza descanso."
+    return {"yesterday": status, "yesterday_plan": previous["session_desc"], "today": planned["session_desc"], "advice": advice}
 
 
 # ---------------------------------------------------------------------------
@@ -342,18 +378,21 @@ def build_email_html(today, plan, strava, coros):
     zones = zones_for(hr_rest)
     zone_note = "" if hr_rest == HR_REST else f" (recalculadas con tu FC reposo de hoy: {hr_rest})"
 
-    nota_html = f"<p><b>⚠️ {plan['nota']}</b></p>" if plan.get("nota") else ""
+    nota_html = f"<p><b>⚠️ {escape(plan['nota'])}</b></p>" if plan.get("nota") else ""
+    adherence = assess_adherence(today, strava.get("activities"))
 
     return f"""
     <h2>🏃 Tu arranque del día — {today.strftime('%A %d de %B, %Y')}</h2>
 
-    <p><b>Resumen de ayer (Strava):</b> {strava['yesterday']}<br>
+    <p><b>Resumen de ayer (Strava):</b> {escape(str(strava['yesterday']))}<br>
     Volumen de los últimos 7 días: {strava['week_km']} km (carrera + caminatas)</p>
 
     {coros_html}
 
     <h3>Entrenamiento de hoy — Semana {plan['week_num']} · Bloque {plan['bloque']}</h3>
-    <p>{plan['session_desc']}</p>
+    <p>{escape(plan['session_desc'])}</p>
+    <h3>Seguimiento del plan</h3>
+    <p><b>Plan de ayer:</b> {escape(adherence['yesterday_plan'])}<br>{escape(adherence['yesterday'])}<br><b>Alternativa orientativa:</b> {escape(adherence['advice'])}</p>
     {nota_html}
     <p style="font-size:12px;color:#888;">
     Zonas de FC (Karvonen, reposo {hr_rest} / máx {HR_MAX}){zone_note}:

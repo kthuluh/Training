@@ -647,15 +647,17 @@ def apply_entreno(html, acts, coros, today, notes):
             html = set_html(html, "ENTRENO_LAST4W", txt + ".", notes, "últimas 4 semanas: resumen actualizado")
 
     # 3) Nota de rampa de volumen
-    ramp = stats.volume_ramp(acts, today) if acts else None
+    ramp = stats.volume_ramp(acts, today, weeks=4, lookback_weeks=3) if acts else None
     if ramp and has_marker(html, "ENTRENO_VOL_NOTE"):
         if ramp["trough_km"] is not None and ramp["peak_km"] > 0:
             pct = f" (+{ramp['pct']*100:.0f}%)" if ramp["pct"] else ""
             txt = (f"El volumen semanal (carrera + caminatas) ha subido rápido: de "
                    f"{stats.fmt_es(ramp['trough_km'], 1)} km "
                    f"({stats.fmt_week(ramp['trough_monday'])}) a {stats.fmt_es(ramp['peak_km'], 1)} km "
-                   f"({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct}.")
+                   f"({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct} dentro de las últimas cuatro semanas completas.")
             html = set_html(html, "ENTRENO_VOL_NOTE", txt, notes, "nota de volumen: actualizada")
+        else:
+            html = set_html(html, "ENTRENO_VOL_NOTE", "No hay una subida comparable en las últimas cuatro semanas completas.")
 
     # 4) Gráfico de volumen semanal (barras apiladas) de la pestaña Entrenamiento
     if acts and has_marker(html, "CHARTVOL_LABELS", marker_html=False):
@@ -763,12 +765,17 @@ def apply_habitos(html, acts, coros, today, notes):
             recientes = f"{st['n_now']} sesiones" if st["n_now"] else "ninguna"
             txt = (f"Última sesión registrada: {stats.fmt_day(st['last_date'])} (hace {st['days_ago']} días). "
                    f"En los últimos 28 días: {recientes}{prev}. Con el volumen de carrera subiendo, "
-                   f"es lo que más baja el riesgo de lesión de aquí al 21K. 25–30 min: sentadilla, zancada, "
+                   f"puede ayudarte a mantener fuerza y tolerancia a la carga de aquí al 21K. 25–30 min: sentadilla, zancada, "
                    f"puente de glúteo, plancha/core, gemelo.")
             html = set_html(html, "HABIT_01_BODY", txt, notes, f"hábitos 01: última fuerza {st['last_date']}")
+        else:
+            html = set_html(html, "HABIT_01_BODY", "No hay sesiones de fuerza registradas en los datos disponibles. La fuerza del plan es opcional; revisa Strava si la hiciste sin registrarla.")
+
+    elif has_marker(html, "HABIT_01_BODY"):
+        html = set_html(html, "HABIT_01_BODY", "No hay sesiones de fuerza registradas en los datos disponibles. La fuerza del plan es opcional; revisa Strava si la hiciste sin registrarla.")
 
     # 02 · Sueño / pasos
-    nights = stats.sleep_short_nights(coros, today, days=90, n=3)
+    nights = stats.sleep_short_nights(coros, today, days=30, n=3)
     if nights and has_marker(html, "HABIT_02_BODY"):
         def night_txt(n):
             base = f"{fmt_hours(n['hours'])} el {n['date'].day}/{n['date'].month}"
@@ -778,12 +785,12 @@ def apply_habitos(html, acts, coros, today, notes):
         listed = "; ".join(night_txt(n) for n in nights)
         tail = ""
         if any(n["steps"] and n["steps"] >= 15000 for n in nights):
-            tail = " Y sí: coinciden con los días de más pasos y más carga."
-        txt = (f"Tus noches más cortas de los últimos 90 días: {listed}.{tail} "
+            tail = " Algunas coinciden con días de muchos pasos; esto no demuestra la causa."
+        txt = (f"Tus noches más cortas de los últimos 30 días: {listed}.{tail} "
                f"Son justo las noches en las que más necesitas recuperar — intenta adelantar la hora de acostarte esos días.")
         html = set_html(html, "HABIT_02_BODY", txt, notes, "hábitos 02: noches más cortas actualizadas")
-    elif has_marker(html, "HABIT_02_BODY") and coros:
-        notes.append("hábitos 02: Coros no expone horas de sueño → se queda el texto manual")
+    elif has_marker(html, "HABIT_02_BODY"):
+        html = set_html(html, "HABIT_02_BODY", "Sin datos de sueño recientes disponibles; no se pueden evaluar las noches más cortas.")
 
     # 03 · Correr Z2 realmente en Z2
     hr_rest, _ = hr_rest_for_zones(coros)
@@ -800,19 +807,23 @@ def apply_habitos(html, acts, coros, today, notes):
                 extra = (f" La más alta: {worst['avg_hr']:.0f} bpm de media el {worst['date'].day}/{worst['date'].month}"
                          f" ({esc(worst['name'])}).") if worst.get("name") else ""
             txt = (f"De tus últimas {hard['n_runs']} salidas ({hard['n_with_hr']} con pulso), {hard['n_hard']} acabaron con "
-                   f"FC media por encima del techo de Z2 ({ceiling} bpm).{extra} Usa la FC como límite duro, no la sensación — "
-                   f"si te pasas de Z2, camina un poco.")
+                   f"FC media por encima del techo de Z2 ({ceiling} bpm).{extra} Este recuento incluye carreras y series, por lo que no indica por sí solo que los rodajes fáciles sean demasiado intensos.")
         html = set_html(html, "HABIT_03_BODY", txt, notes, f"hábitos 03: {hard['n_hard']}/{hard['n_with_hr']} salidas sobre Z2")
 
+    elif has_marker(html, "HABIT_03_BODY"):
+        html = set_html(html, "HABIT_03_BODY", "Sin salidas recientes con frecuencia cardiaca suficiente para evaluar. En rodajes fáciles usa Z2 como referencia.")
+
     # 05 · Subir el volumen con calma
-    ramp = stats.volume_ramp(acts, today) if acts else None
+    ramp = stats.volume_ramp(acts, today, weeks=4, lookback_weeks=3) if acts else None
     if ramp and ramp["trough_km"] is not None and has_marker(html, "HABIT_05_BODY"):
         pct = f" (+{ramp['pct']*100:.0f}%)" if ramp["pct"] else ""
         txt = (f"Pasaste de {stats.fmt_es(ramp['trough_km'], 1)} km ({stats.fmt_week(ramp['trough_monday'])}) a "
-               f"{stats.fmt_es(ramp['peak_km'], 1)} km ({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct} "
-               f"(contando carrera y caminatas). A partir de aquí, no subas más de un 10% de una semana a otra "
+               f"{stats.fmt_es(ramp['peak_km'], 1)} km ({stats.fmt_week(ramp['peak_monday'])}) en {ramp['span_weeks']} semanas{pct} dentro de las últimas cuatro semanas completas "
+               f"(contando carrera y caminatas). Valora los aumentos de forma gradual y según recuperación, "
                f"salvo semanas de descarga.")
         html = set_html(html, "HABIT_05_BODY", txt, notes, "hábitos 05: rampa de volumen actualizada")
+    elif has_marker(html, "HABIT_05_BODY"):
+        html = set_html(html, "HABIT_05_BODY", "No hay datos suficientes en las últimas cuatro semanas completas para comparar la progresión de volumen.")
 
     return html
 
@@ -1146,8 +1157,17 @@ def apply_historial(html, acts, coros, today, notes):
                             "historial: veredicto actualizado")
 
     # 2) Carreras del año (Strava, workout_type = Race)
-    if acts and has_marker(html, "RACES"):
+    if has_marker(html, "RACES"):
         year_races = stats.races(acts, year=today.year)
+        # El Tast puede llegar como entrenamiento normal de Strava. Solo se
+        # infiere por nombre explícito; no se modifica la actividad ni los PB.
+        for a in acts:
+            if (a["is_run"] and not a["race"] and a["km"] > 0 and a["date"].year == today.year
+                    and a["date"] <= today and re.search(r"\btast\b", a["name"], re.I)):
+                year_races.append({"name": a["name"] + " (identificada por nombre)", "date": a["date"],
+                                   "km": a["km"], "time_s": a["moving_time"] or None})
+        year_races = [r for r in year_races if r["date"] <= today]
+        year_races.sort(key=lambda r: r["date"], reverse=True)
         if year_races:
             items = []
             for r in year_races:
@@ -1158,6 +1178,8 @@ def apply_historial(html, acts, coros, today, notes):
                     f'<div class="num">{stats.fmt_time(r["time_s"])}</div></div>'
                 )
             html = set_html(html, "RACES", "\n      ".join(items), notes, f"historial: {len(year_races)} carreras del año")
+        else:
+            html = set_html(html, "RACES", "<p>Sin carreras identificadas en Strava este año. Marca la actividad como carrera o revisa su sincronización.</p>")
 
     # 3) Gráficos mensuales (barras + FC reposo) y tarjetas mensuales
     manual_months = snapshot_monthly_cards(html)
@@ -1357,13 +1379,21 @@ def build_recos(acts, coros, today):
     items = []
     latest = (coros or {}).get("latest") or {}
     last14 = (coros or {}).get("latest_14") or {}
+    if coros:
+        try:
+            coros_day = date.fromisoformat(str(coros.get("date") or "")[:10])
+        except ValueError:
+            coros_day = None
+        if coros_day is None or (today - coros_day).days > 2 or coros_day > today:
+            items.append((True, "Datos de Coros no actualizados", "No se evalúan carga, FC ni sueño con datos antiguos o sin fecha; revisa la sincronización."))
+            latest, last14 = {}, {}
 
-    ramp = stats.volume_ramp(acts, today) if acts else None
+    ramp = stats.volume_ramp(acts, today, weeks=4, lookback_weeks=3) if acts else None
     if ramp and ramp["trough_km"] is not None and ramp["pct"] and ramp["pct"] >= 0.6 and ramp["span_weeks"] <= 4:
         items.append((True, "Salto fuerte de volumen reciente",
                       f"De {stats.fmt_es(ramp['trough_km'], 1)} km ({stats.fmt_week(ramp['trough_monday'])}) a "
                       f"{stats.fmt_es(ramp['peak_km'], 1)} km ({stats.fmt_week(ramp['peak_monday'])}) en "
-                      f"{ramp['span_weeks']} semanas (+{ramp['pct']*100:.0f}%). La regla del 10% semanal se supera de largo: "
+                      f"{ramp['span_weeks']} semanas (+{ramp['pct']*100:.0f}%). Es una subida importante en las últimas cuatro semanas completas: "
                       f"estabiliza 1–2 semanas antes de volver a subir el volumen."))
 
     ratio = stats.as_number(latest.get("load_ratio"))
@@ -1373,9 +1403,8 @@ def build_recos(acts, coros, today):
                           f"Ratio de carga {ratio:.2f} en Coros: estás metiendo más carga de la que tu base digiere sin coste. "
                           f"Baja la intensidad de las próximas 2–3 sesiones y prioriza dormir."))
         elif ratio < 0.85:
-            items.append((False, "Margen para más volumen",
-                          f"Ratio de carga {ratio:.2f} en Coros: por debajo de tu carga habitual, así que hay margen para meter "
-                          f"más volumen (con la regla del 10% semanal)."))
+            items.append((False, "Carga por debajo de tu referencia",
+                          f"Ratio de carga {ratio:.2f} en Coros: por debajo de tu carga habitual. Sigue el plan y ajusta según tus sensaciones; el ratio por sí solo no indica que debas aumentar volumen."))
         else:
             items.append((False, "Carga en banda óptima",
                           f"Ratio de carga {ratio:.2f} en Coros: dentro de la banda habitual de rendimiento."))
@@ -1398,7 +1427,7 @@ def build_recos(acts, coros, today):
         else:
             items.append((False, "Buena base de recuperación",
                           f"FC reposo {rhr14:.0f} bpm de media en 14 días ({rango}){hrv_txt}: tu cuerpo tolera bien la carga "
-                          f"actual, así que el margen está en meter más entrenamiento, no en preocuparte por sobreentrenar."))
+                          f"actual. Son indicadores orientativos, no garantizan recuperación completa; considera también sensaciones y fatiga."))
 
     sleep14 = stats.as_number(last14.get("sleep_hours_avg"))
     if sleep14 is not None:
@@ -1408,7 +1437,7 @@ def build_recos(acts, coros, today):
                           f"que tienes: intenta adelantar la hora de acostarte los días de carga alta."))
         else:
             items.append((False, "Sueño en rango",
-                          f"{fmt_hours(sleep14)} de media en 14 días: suficiente para sostener la carga actual."))
+                          f"{fmt_hours(sleep14)} de media en los datos disponibles de los últimos 14 días; valora también calidad de sueño y sensaciones."))
 
     if acts:
         st = stats.strength_stats(acts, today)
@@ -1426,12 +1455,10 @@ def build_recos(acts, coros, today):
                           f"Mantén el ritmo de 2x/semana."))
 
     # Recomendaciones fijas (no dependen de datos automáticos)
-    items.append((False, "Peso confirmado: 73 kg",
-                  "Ya recalculado en dieta y en el resumen con este dato. Solo falta que actualices el perfil de Coros, "
-                  "que sigue marcando 70 kg, para que ambas plataformas coincidan."))
-    items.append((False, "Zonas de FC de Strava desactualizadas",
-                  "Tus zonas manuales en Strava no coinciden exactamente con el cálculo Karvonen que vienes usando en tus "
-                  "análisis. Actualízalas ahí para que Strava, Coros y estas tablas usen el mismo criterio."))
+    items.append((False, "Peso de referencia: 73 kg",
+                  "La dieta utiliza un peso manual de referencia; comprueba y actualízalo si ha cambiado."))
+    items.append((False, "Revisa las zonas de FC",
+                  "Compara las zonas de Strava con las calculadas en el dashboard; no podemos comprobar automáticamente su configuración."))
     items.append((False, "No tengo datos de Apple Salud / MiSalud",
                   "Este panel se basa solo en Strava y Coros. Si quieres que las cifras de peso, pasos o FC se crucen también "
                   "con Apple Salud, no hay conector directo: o pasas los datos a mano o revisas si Apple Salud sincroniza ya "
@@ -1441,8 +1468,8 @@ def build_recos(acts, coros, today):
 
 def apply_recos(html, acts, coros, today, notes):
     if not acts and not coros:
-        notes.append("recomendaciones: sin datos, no toco la pestaña")
-        return html
+        notes.append("recomendaciones: sin datos recientes disponibles")
+        return set_html(html, "RECOS", '<div class="card">Sin datos recientes disponibles para generar recomendaciones.</div>')
     if not has_marker(html, "RECOS"):
         notes.append("recomendaciones: marcador RECOS ausente")
         return html
@@ -1455,6 +1482,18 @@ def apply_recos(html, acts, coros, today, notes):
     html = replace_marked_html(html, "RECOS", "\n    ".join(out))
     notes.append(f"recomendaciones: {sum(1 for i in items if i[0])} avisos de {len(items)} puntos")
     return html
+
+
+def apply_adherence(html, acts, today, notes):
+    if not has_marker(html, "ADHERENCE"):
+        return html
+    from daily_brief import assess_adherence
+    result = assess_adherence(today, acts)
+    content = (f'<div class="card"><h3>Ayer · {esc((today - timedelta(days=1)).isoformat())}</h3>'
+               f'<p><b>Plan previsto:</b> {esc(result["yesterday_plan"])}</p><p>{esc(result["yesterday"])}</p><h3>Plan de hoy</h3><p>{esc(result["today"])}</p>'
+               f'<h3>Alternativa orientativa</h3><p>{esc(result["advice"])}</p>'
+               '<p class="sub">Basado solo en actividades registradas en Strava; no verifica ritmos, fuerza no registrada ni sensaciones. No modifica el plan.</p></div>')
+    return set_html(html, "ADHERENCE", content, notes, "seguimiento del plan actualizado")
 
 
 # ---------------------------------------------------------------------------
@@ -1498,7 +1537,13 @@ def main():
         notes.append("modo --only-coros: Strava no se toca (entreno, dieta, historial, recos) "
                      "y de Hábitos solo el bloque de sueño, que es de Coros")
     else:
-        acts = load_activities(today)
+        strava_ok = True
+        try:
+            acts = load_activities(today)
+        except (OSError, ValueError, KeyError, RuntimeError, requests.RequestException if requests else RuntimeError) as exc:
+            acts = []
+            strava_ok = False
+            notes.append(f"Strava no disponible ({type(exc).__name__}); no se puede evaluar el cumplimiento.")
         print(f"· Strava: {len(acts)} actividades (últimos {STRAVA_HISTORY_DAYS} días), "
               f"{len(stats.foot_activities(acts))} con kilómetros a pie "
               f"({len(stats.runs(acts))} de carrera, {len(stats.walks(acts))} caminando).")
@@ -1520,6 +1565,9 @@ def main():
         html, mondays_iso = result
         html = safe(html, "líneas semanales", lambda h: reconcile_weekly_lines(h, mondays_iso, coros, manual_by_week, notes), notes)
         html = safe(html, "Recomendaciones", lambda h: apply_recos(h, acts, coros, today, notes), notes)
+        if not strava_ok:
+            html = set_html(html, "RACES", "<p>Strava no disponible: no se pueden actualizar las carreras.</p>")
+        html = safe(html, "Seguimiento", lambda h: apply_adherence(h, acts if strava_ok else None, today, notes), notes)
 
         # Tarjeta de la semana en curso (solo si Strava devolvió algo: sin
         # actividades no sabemos si es descanso o un fallo de la API)
