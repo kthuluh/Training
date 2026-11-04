@@ -181,7 +181,7 @@
     <div class="section-title">Estado actual</div>
     <div class="grid3">
       <div class="card"><h3>Peso</h3><div class="big">73 kg</div><div class="sub">Confirmado por ti. El perfil de Coros todavía marca 70 kg — actualízalo ahí para que ambas plataformas coincidan.</div></div>
-      <div class="card"><h3>FC reposo (14 días)</h3><div class="big"><!--AUTO:RHR_CARD-->45 bpm<!--/AUTO:RHR_CARD--></div><div class="sub"><!--AUTO:RHR_CARD_SUB-->Rango 41–49 bpm, últimos 14 días desde el reloj Coros (actualizado 2026-11-03, API no oficial).<!--/AUTO:RHR_CARD_SUB--></div></div>
+      <div class="card"><h3>FC reposo (14 días)</h3><div class="big"><!--AUTO:RHR_CARD-->45 bpm<!--/AUTO:RHR_CARD--></div><div class="sub"><!--AUTO:RHR_CARD_SUB-->Rango 41–49 bpm, últimos 14 días desde el reloj Coros (último dato 2026-11-03, MCP oficial).<!--/AUTO:RHR_CARD_SUB--></div></div>
       <div class="card"><h3>HRV (Coros)</h3><div class="big"><!--AUTO:HRV_CARD-->64 ms<!--/AUTO:HRV_CARD--></div><div class="sub"><!--AUTO:HRV_CARD_SUB-->Media de las últimas 2 semanas desde EvoLab; baseline Coros 63 ms (la HRV nocturna sí la expone la librería; se refresca a diario).<!--/AUTO:HRV_CARD_SUB--></div></div>
     </div>
 
@@ -196,9 +196,9 @@
 
     <div class="section-title">Sueño (media últimos 14 días)</div>
     <div class="grid3">
-      <div class="card"><h3>Duración media</h3><div class="big"><!--AUTO:SLEEP_14D_AVG-->7h 03m<!--/AUTO:SLEEP_14D_AVG--></div><div class="sub"><!--AUTO:SLEEP_14D_SUB-->Rango 4h18m–9h07m. Las noches más cortas coinciden con días de +20.000 pasos. <i style="font-size:10px;">(se automática solo si Coros expone horas de sueño — ver README)</i><!--/AUTO:SLEEP_14D_SUB--></div></div>
+      <div class="card"><h3>Duración media</h3><div class="big"><!--AUTO:SLEEP_14D_AVG-->7 h 28 m<!--/AUTO:SLEEP_14D_AVG--></div><div class="sub"><!--AUTO:SLEEP_14D_SUB-->Media real de 12 noches leída de Coros.<!--/AUTO:SLEEP_14D_SUB--></div></div>
       <div class="card"><h3>Sueño profundo medio</h3><div class="big">~1h 06m</div><div class="sub">Buena proporción de sueño profundo cuando duermes más de 7h.</div></div>
-      <div class="card"><h3>Pasos diarios</h3><div class="big"><!--AUTO:STEPS_CARD-->~13.790<!--/AUTO:STEPS_CARD--></div><div class="sub"><!--AUTO:STEPS_CARD_SUB-->Media de 14 días — baja por un par de días muy flojos (viaje/descanso), pero sigue siendo un nivel de actividad alto. <i style="font-size:10px;">(se actualiza solo si Coros expone los pasos — ver README)</i><!--/AUTO:STEPS_CARD_SUB--></div></div>
+      <div class="card"><h3>Pasos diarios</h3><div class="big"><!--AUTO:STEPS_CARD-->~13.556<!--/AUTO:STEPS_CARD--></div><div class="sub"><!--AUTO:STEPS_CARD_SUB-->Rango 3.780–21.575 pasos. Media de los últimos 13 días desde Coros (último dato 2026-11-03, MCP oficial).<!--/AUTO:STEPS_CARD_SUB--></div></div>
     </div>
   </section>
 
@@ -264,9 +264,9 @@
 
   <!-- DIETA -->
   <section class="panel" id="dieta">
-    <div class="flag info">Estimado con tu peso (73 kg), altura (170 cm) y edad (46), y tu nivel de actividad real <!--AUTO:DIETA_ACTIVITY-->(carreras + ~15.900 pasos/día de media)<!--/AUTO:DIETA_ACTIVITY-->. Son puntos de partida, no cifras clínicas — ajusta según cómo te sientas y el peso real semana a semana.</div>
+    <div class="flag info">Estimado con tu peso (73 kg), altura (170 cm) y edad (46), y tu nivel de actividad real <!--AUTO:DIETA_ACTIVITY-->(carreras + ~13.556 pasos/día de media en 14 días, vía Coros)<!--/AUTO:DIETA_ACTIVITY-->. Son puntos de partida, no cifras clínicas — ajusta según cómo te sientas y el peso real semana a semana.</div>
 
-    <div class="flag info" style="margin-top:10px;"><!--AUTO:DIETA_CONTEXT--><b>Contexto real (auto):</b> esta semana: 0,0 km en 1 fuerza · media de las 4 semanas anteriores: 23,0 km/semana · ratio de carga 0.93 (Coros). Ajusta las calorías de los días de calidad/tirada larga según lo que toque cada día.<!--/AUTO:DIETA_CONTEXT--></div>
+    <div class="flag info" style="margin-top:10px;"><!--AUTO:DIETA_CONTEXT--><b>Contexto real (auto):</b> esta semana: 0,0 km en 1 fuerza · media de las 4 semanas anteriores: 23,0 km/semana · ratio de carga 0.93 (Coros) · ~13.556 pasos/día en 14 días. Ajusta las calorías de los días de calidad/tirada larga según lo que toque cada día.<!--/AUTO:DIETA_CONTEXT--></div>
 
     <div class="section-title">Calorías según tipo de día</div>
     <div class="grid3">
@@ -312,7 +312,7 @@
       <div class="habit-num">02</div>
       <div class="habit-body">
         <h3>Dormir más en los días de +20.000 pasos</h3>
-        <p><!--AUTO:HABIT_02_BODY-->Tus noches más cortas de los últimos 90 días: 3 h 03 m el 10/10; 3 h 42 m el 16/8; 4 h 03 m el 29/8. Son justo las noches en las que más necesitas recuperar — intenta adelantar la hora de acostarte esos días.<!--/AUTO:HABIT_02_BODY--></p>
+        <p><!--AUTO:HABIT_02_BODY-->Tus noches más cortas de los últimos 90 días: 3 h 03 m el 10/10 (9.956 pasos); 3 h 42 m el 16/8; 4 h 03 m el 29/8. Son justo las noches en las que más necesitas recuperar — intenta adelantar la hora de acostarte esos días.<!--/AUTO:HABIT_02_BODY--></p>
       </div>
     </div>
     <div class="habit-row">
@@ -349,12 +349,12 @@
     </div><!--/AUTO:SLEEP_CARDS-->
     <div class="card" style="margin-top:14px;"><div class="chart-wrap"><canvas id="chartSleep"></canvas></div></div>
     <div class="flag info" style="margin-top:14px;"><!--AUTO:SLEEP_VERDICT--><b>Sueño:</b> 7h00m de media en 28 noches — a 30m del objetivo de 7h30m. La última semana sube 1m respecto a la anterior.<!--/AUTO:SLEEP_VERDICT--></div>
-    <div class="card sub" style="margin-top:10px;"><!--AUTO:SLEEP_NOTES-->Las noches más cortas de la ventana: 3h03m del 10/10, 4h50m del 8/10, 4h53m del 11/10. De la mejor noche (9h46m del 12/10) a la peor (3h03m del 10/10) hay 6h43m de diferencia — mucha irregularidad, y es lo primero que se puede arreglar. El análisis usa la duración del sueño principal de COROS; las fases (ligero/profundo/REM) no se analizan en este dashboard.<!--/AUTO:SLEEP_NOTES--></div>
+    <div class="card sub" style="margin-top:10px;"><!--AUTO:SLEEP_NOTES-->Las noches más cortas de la ventana: 3h03m del 10/10 (9.956 pasos), 4h50m del 8/10 (11.065 pasos), 4h53m del 11/10 (10.691 pasos). De la mejor noche (9h46m del 12/10) a la peor (3h03m del 10/10) hay 6h43m de diferencia — mucha irregularidad, y es lo primero que se puede arreglar. El análisis usa la duración del sueño principal de COROS; las fases (ligero/profundo/REM) no se analizan en este dashboard.<!--/AUTO:SLEEP_NOTES--></div>
   </section>
 
   <!-- HISTORIAL -->
   <section class="panel" id="historial">
-    <div class="flag info"><!--AUTO:HIST_COVERAGE_NOTE--><b>Cobertura de datos:</b> actividades de Strava del 4 nov–3 nov; Coros hasta el 3 nov (FC reposo, HRV, sueño, carga). El detalle semana a semana cubre las últimas 12 semanas completas. Hoy es miércoles 4 de noviembre y vas por la semana 9 de 20 del plan (21K).<!--/AUTO:HIST_COVERAGE_NOTE--></div>
+    <div class="flag info"><!--AUTO:HIST_COVERAGE_NOTE--><b>Cobertura de datos:</b> actividades de Strava del 4 nov–3 nov; Coros hasta el 3 nov (FC reposo, HRV, sueño, pasos, carga). El detalle semana a semana cubre las últimas 12 semanas completas. Hoy es miércoles 4 de noviembre y vas por la semana 9 de 20 del plan (21K).<!--/AUTO:HIST_COVERAGE_NOTE--></div>
 
     <div class="section-title">¿Mejorando o empeorando? — últimas 4 semanas completas vs. las 4 anteriores</div>
     <div class="grid3">
@@ -412,79 +412,79 @@
       <!--AUTO:WEEKLY_CARDS--><div class="wcard"><div class="wk-lbl">10-16 ago</div>
         <div class="metric"><span>Volumen</span><span class="v">26,3 km</span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">5h 45m</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">6h 20m <span class="delta down">▼53m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">52 bpm</span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">17-23 ago</div>
         <div class="metric"><span>Volumen</span><span class="v">49,6 km <i style="font-size:10px;opacity:.7">(47,1 carrera)</i> <span class="delta up">▲23,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">5 + 1 caminata — pico del periodo</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">7h 37m <span class="delta up">▲1h52m</span></span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 02m <span class="delta up">▲43m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta up">▼6</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">24-30 ago</div>
         <div class="metric"><span>Volumen</span><span class="v">48,2 km <i style="font-size:10px;opacity:.7">(38,0 carrera)</i> <span class="delta down">▼1,4</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4 + 2 caminatas</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">6h 25m <span class="delta down">▼1h12m</span></span></div>
+        <div class="metric"><span>Sueño</span><span class="v">5h 49m <span class="delta down">▼1h13m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">31ago-6sep</div>
         <div class="metric"><span>Volumen</span><span class="v">23,3 km <i style="font-size:10px;opacity:.7">(16,7 carrera)</i> <span class="delta down">▼24,9</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 caminata</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">7h 34m <span class="delta up">▲1h09m</span></span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 20m <span class="delta up">▲1h31m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">7-13 sep</div>
         <div class="metric"><span>Volumen</span><span class="v">29,4 km <i style="font-size:10px;opacity:.7">(14,8 carrera)</i> <span class="delta up">▲6,1</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 4 caminatas + 1 fuerza</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 43m <span class="delta up">▲23m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">14-20 sep</div>
         <div class="metric"><span>Volumen</span><span class="v">15,8 km <span class="delta down">▼13,6</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">2 + 1 fuerza</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 00m <span class="delta down">▼43m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta flat">＝</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">21-27 sep</div>
         <div class="metric"><span>Volumen</span><span class="v">42,1 km <i style="font-size:10px;opacity:.7">(40,0 carrera)</i> <span class="delta up">▲26,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4 + 1 caminata + 2 fuerza</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 17m <span class="delta up">▲17m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">44 bpm <span class="delta up">▼3</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">28sep-4oct</div>
         <div class="metric"><span>Volumen</span><span class="v">21,8 km <span class="delta down">▼20,3</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">3</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">6h 58m <span class="delta down">▼20m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta down">▲1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">5-11 oct</div>
         <div class="metric"><span>Volumen</span><span class="v">0,0 km <span class="delta down">▼21,8</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">0</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">5h 47m <span class="delta down">▼1h10m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">44 bpm <span class="delta up">▼1</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">12-18 oct</div>
         <div class="metric"><span>Volumen</span><span class="v">29,2 km <span class="delta up">▲29,2</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">3 + 1 fuerza</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 10m <span class="delta up">▲1h23m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">46 bpm <span class="delta down">▲2</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">19-25 oct</div>
         <div class="metric"><span>Volumen</span><span class="v">35,7 km <i style="font-size:10px;opacity:.7">(32,1 carrera)</i> <span class="delta up">▲6,5</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4 + 1 caminata</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 43m <span class="delta up">▲33m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">47 bpm <span class="delta flat">＝</span></span></div>
       </div>
       <div class="wcard"><div class="wk-lbl">26oct-1nov</div>
         <div class="metric"><span>Volumen</span><span class="v">27,0 km <span class="delta down">▼8,7</span></span></div>
         <div class="metric"><span>Sesiones</span><span class="v">4 + 1 fuerza</span></div>
-        <div class="metric"><span>Sueño</span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">7h 27m <span class="delta down">▼16m</span></span></div>
         <div class="metric"><span>FC reposo</span><span class="v">45 bpm <span class="delta up">▼2</span></span></div>
       </div><!--/AUTO:WEEKLY_CARDS-->
       <!--AUTO:CURRENT_WEEK--><div class="wcard partial"><div class="wk-lbl">2-8 nov · en curso</div>
         <div class="metric"><span>Volumen</span><span class="v">0,0 km</span></div>
         <div class="metric"><span>Sesiones</span><span class="v">1 fuerza</span></div>
-        <div class="metric" style="opacity:0.7;"><span>Sueño <i style="font-size:10px;">(manual)</i></span><span class="v">—</span></div>
+        <div class="metric"><span>Sueño</span><span class="v">6h 53m</span></div>
         <div class="metric"><span>FC reposo</span><span class="v">44 bpm</span></div>
       </div><!--/AUTO:CURRENT_WEEK-->
     </div>
@@ -503,6 +503,10 @@
     <div class="rec">
       <div class="dot"></div>
       <div><h3>Buena base de recuperación</h3><p>FC reposo 45 bpm de media en 14 días (rango 41–49) y HRV 64 ms (baseline 63): tu cuerpo tolera bien la carga actual, así que el margen está en meter más entrenamiento, no en preocuparte por sobreentrenar.</p></div>
+    </div>
+    <div class="rec">
+      <div class="dot"></div>
+      <div><h3>Sueño en rango</h3><p>7 h 28 m de media en 14 días: suficiente para sostener la carga actual.</p></div>
     </div>
     <div class="rec">
       <div class="dot"></div>
@@ -525,7 +529,7 @@
 </main>
 
 <footer>
-  <!--AUTO:FOOTER_INFO-->Datos de Strava (actividades del 4 nov–3 nov) y Coros (FC reposo, HRV, sueño, carga) hasta el 2026-11-03, actualizado el 4 de noviembre de 2026. <!--/AUTO:FOOTER_INFO--> Zonas de FC calculadas por método Karvonen con FC máx de referencia 182 bpm (mejor esfuerzo 10K). No es asesoramiento médico ni nutricional profesional.
+  <!--AUTO:FOOTER_INFO-->Datos de Strava (actividades del 4 nov–3 nov) y Coros (FC reposo, HRV, sueño, pasos, carga) hasta el 2026-11-03, actualizado el 4 de noviembre de 2026. <!--/AUTO:FOOTER_INFO--> Zonas de FC calculadas por método Karvonen con FC máx de referencia 182 bpm (mejor esfuerzo 10K). No es asesoramiento médico ni nutricional profesional.
 </footer>
 
 <script>
@@ -695,7 +699,7 @@
       datasets:[
         {type:'bar',label:'Carrera (km)',data:/*AUTO:WEEKLY_VOL_RUN*/[0,26.3,47.1,38,16.7,14.8,15.8,40,21.8,0,29.2,32.1,27,0]/*/AUTO:WEEKLY_VOL_RUN*/,backgroundColor:'#3F5C46',yAxisID:'y',order:3,stack:'vol'},
         {type:'bar',label:'Caminatas (km)',data:/*AUTO:WEEKLY_VOL_WALK*/[0,0,2.5,10.2,6.6,14.5,0,2.1,0,0,0,3.6,0,0]/*/AUTO:WEEKLY_VOL_WALK*/,backgroundColor:'#8FA98F',yAxisID:'y',order:2,stack:'vol'},
-        {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[null,7.93,5.75,7.61,6.42,7.57,7.52,null,null,null,null,null,null,null]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
+        {type:'line',label:'Sueño (h)',data:/*AUTO:WEEKLY_SLEEP*/[7.21,6.33,7.04,5.82,7.34,7.72,7,7.29,6.96,5.79,7.17,7.72,7.45,6.88]/*/AUTO:WEEKLY_SLEEP*/,borderColor:'#A9552E',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:2,order:1},
         {type:'line',label:'FC reposo (bpm)',data:/*AUTO:WEEKLY_RHR*/[51,52,46,45,46,47,47,44,45,44,46,47,45,44]/*/AUTO:WEEKLY_RHR*/,borderColor:'#35586B',backgroundColor:'transparent',yAxisID:'y2',tension:0.3,pointRadius:2,borderDash:[4,3],order:1}
       ]
     },
