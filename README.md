@@ -343,7 +343,7 @@ Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 | Hábitos | `HABIT_01_BODY`, `HABIT_02_BODY`, `HABIT_03_BODY`, `HABIT_05_BODY` | Strava + Coros | última sesión de fuerza, noches más cortas, salidas que se pasan del techo de Z2 y rampa de volumen |
 | Hábitos | `SLEEP_TITLE`, `SLEEP_CARDS`, `SLEEP_VERDICT`, `SLEEP_NOTES`, `SLEEP30_LABELS`, `SLEEP30_DATA`, `SLEEP30_TARGET` | Coros | bloque *Análisis del sueño* al final de la pestaña: 4 tarjetas (media, noches en objetivo, deuda y tendencia 7 vs 7), gráfico de las últimas 30 noches contra el objetivo, veredicto y notas con lo que Coros no da |
 | Historial | `TREND_VOL_CARD`, `TREND_RHR_CARD`, `TREND_SLEEP_CARD`, `TREND_VERDICT` | Strava + Coros | las 4 últimas semanas completas frente a las 4 anteriores |
-| Historial | `RACES` | Strava | carreras del año (`workout_type = Race`) |
+| Historial | `RACES` | Strava | carreras marcadas como Race y salidas identificadas por nombre (Tast o Cursa) |
 | Historial | `MONTHLY_LABELS`, `MONTHLY_VOL_RUN`, `MONTHLY_VOL_WALK`, `MONTHLY_RHR`, `MONTHLY_YEAR`, `MONTHLY_VOL_YEAR`, `MONTHLY_RHR_YEAR`, `MONTHLY_RANGE_TITLE`, `MONTHLY_CARDS` | Strava + Coros | gráficos mensuales (volumen a pie apilado y FC reposo) y tarjetas de mes |
 | Historial | `WEEKLY_LABELS`, `WEEKLY_VOL_RUN`, `WEEKLY_VOL_WALK`, `WEEKLY_MONDAYS`, `WEEKLY_RHR`, `WEEKLY_SLEEP`, `WEEKLY_CARDS`, `CURRENT_WEEK`, `HIST_COVERAGE_NOTE` | Strava + Coros | 12 semanas completas + la semana en curso, con sueño y FC reposo si Coros los trae |
 | Recomendaciones | `RECOS` | Strava + Coros | la lista entera, generada por reglas y datos recientes |
@@ -520,8 +520,8 @@ perdidas, y las carreras mantienen prioridad. Si Strava falla o una sesión se
 hizo sin sincronizar, no se puede concluir que no se realizó.
 
 Historial muestra carreras marcadas como `Race` en Strava y, como excepción,
-actividades de carrera cuyo nombre contiene «Tast», etiquetadas como inferidas
-por el nombre. No se inventan resultados ni se cuentan como marcas personales
+actividades de carrera cuyo nombre contiene «Tast» o «Cursa» (sin distinguir
+mayúsculas), etiquetadas como inferidas por el nombre. No se inventan resultados ni se cuentan como marcas personales
 si no están marcadas como carrera. Si el Tast no aparece, revisa su nombre,
 visibilidad y sincronización en Strava. Los avisos de rampa de las pestañas
 usan las últimas cuatro semanas completas, no el máximo del trimestre.
