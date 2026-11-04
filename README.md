@@ -510,8 +510,11 @@ requirements.txt           requests, para Strava
 ### Seguimiento diario y carreras
 
 El correo y la pestaña Seguimiento comparan el tipo de sesión prevista ayer
-con lo registrado en Strava, sin afirmar que ritmo, distancia o intensidad se
-hayan cumplido. La fuerza en días de «descanso o fuerza» es opcional, no un
+con todo lo registrado en Strava. Si el plan indica distancia, la muestra junto
+a la distancia registrada sin dar por cumplidos el ritmo ni la intensidad.
+Una carrera en un día de descanso o fuerza opcional se señala como no prevista;
+indicadores como FC media en Z4, una carrera larga o marcada como carrera
+orientan hacia la recuperación, pero no miden por sí solos la fatiga. La fuerza en días de «descanso o fuerza» es opcional, no un
 incumplimiento; las alternativas no cambian el plan ni compensan sesiones
 perdidas, y las carreras mantienen prioridad. Si Strava falla o una sesión se
 hizo sin sincronizar, no se puede concluir que no se realizó.

@@ -91,3 +91,88 @@ class AdherenceTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class FullDayAdherenceTests(unittest.TestCase):
+    def test_sin_entreno_conforme_a_descanso_opcional(self):
+        result = db.assess_adherence(date(2026, 11, 4), [])
+        self.assertIn('coincide', result['yesterday'])
+        self.assertIn('fuerza era opcional', result['yesterday'])
+        self.assertIn('No hay actividades', result['recorded'])
+
+    def test_fuerza_y_carrera_exigente_en_dia_flexible(self):
+        d = date(2026, 11, 4)
+        acts = stats.normalize([
+            raw_activity(d - timedelta(days=1), 0, 25, type_='WeightTraining', name='Fuerza'),
+            raw_activity(d - timedelta(days=1), 12, 65, name='Carrera larga', hr=160),
+        ])
+        result = db.assess_adherence(d, acts)
+        self.assertIn('se aparta del plan', result['yesterday'])
+        self.assertIn('esfuerzo elevado', result['yesterday'])
+        self.assertIn('Fuerza', result['recorded'])
+        self.assertIn('Carrera larga', result['recorded'])
+        self.assertIn('descanso o rodaje Z2 suave', result['advice'])
+        self.assertNotEqual(result['advice'], 'Mantén la sesión prevista si te encuentras bien; ante dolor o fatiga, prioriza descanso.')
+
+    def test_fuerza_en_dia_flexible_esta_prevista(self):
+        d = date(2026, 11, 4)
+        acts = stats.normalize([raw_activity(d - timedelta(days=1), 0, 30, type_='WeightTraining', name='Fuerza')])
+        result = db.assess_adherence(d, acts)
+        self.assertIn('conforme', result['yesterday'])
+        self.assertIn('Fuerza', result['recorded'])
+        self.assertNotIn('se aparta', result['yesterday'])
+
+    def test_ciclismo_no_se_omite_y_carga_elevada_sin_carrera(self):
+        d = date(2026, 11, 4)
+        acts = stats.normalize([raw_activity(d - timedelta(days=1), 45, 70, type_='Ride', name='Bicicleta', hr=165)])
+        result = db.assess_adherence(d, acts)
+        self.assertIn('Bicicleta', result['recorded'])
+        self.assertIn('otras actividades', result['yesterday'])
+        self.assertIn('indicadores de carga', result['advice'])
+
+    def test_actividad_adicional_en_dia_de_carrera_prevista(self):
+        d = date(2026, 11, 5)
+        acts = stats.normalize([raw_activity(d - timedelta(days=1), 5, 30),
+                                raw_activity(d - timedelta(days=1), 0, 20, type_='Yoga', name='Yoga')])
+        result = db.assess_adherence(d, acts)
+        self.assertIn('no el ritmo', result['yesterday'])
+        self.assertIn('Yoga', result['recorded'])
+
+    def test_alta_intensidad_no_invalida_la_carrera_de_hoy(self):
+        d = date(2026, 11, 8)
+        acts = stats.normalize([raw_activity(d - timedelta(days=1), 15, 70, hr=168)])
+        advice = db.assess_adherence(d, acts)['advice']
+        self.assertIn('Día de carrera', advice)
+        self.assertIn('valora no competir', advice)
+
+    def test_dashboard_y_correo_muestran_registros_escapados(self):
+        d = date(2026, 11, 4)
+        acts = stats.normalize([raw_activity(d - timedelta(days=1), 12, 60, name='<script>')])
+        html = ud.apply_adherence(new_html(), acts, d, [])
+        email = db.build_email_html(d, db.get_today_plan(d),
+            {'yesterday': 'actividad', 'week_km': 12, 'activities': acts}, None)
+        for value in (marked(html, 'ADHERENCE'), email):
+            self.assertIn('&lt;script&gt;', value)
+            self.assertIn('se aparta del plan', value)
+            self.assertNotIn('<script>', value)
+
+    def test_datos_no_disponibles_no_equivalen_a_descanso(self):
+        result = db.assess_adherence(date(2026, 11, 4), None)
+        self.assertIn('no se puede determinar', result['yesterday'])
+        self.assertIn('no está disponible', result['recorded'])
+        self.assertNotIn('coincide', result['yesterday'])
+
+    def test_sesion_facil_compara_distancia_y_pulso_sin_dar_cumplida_intensidad(self):
+        today = date(2026, 11, 3)
+        acts = stats.normalize([raw_activity(today - timedelta(days=1), 12, 65, hr=165)])
+        result = db.assess_adherence(today, acts)
+        self.assertIn('Distancia registrada: 12.0 km', result['yesterday'])
+        self.assertIn('difiere de la referencia', result['yesterday'])
+        self.assertIn('supera el techo de Z2', result['yesterday'])
+        self.assertIn('no el ritmo', result['yesterday'])
+
+    def test_actividad_fuera_del_plan_sigue_visible(self):
+        today = date(2027, 1, 26)
+        acts = stats.normalize([raw_activity(today - timedelta(days=1), 5, 32, name='Correr')])
+        result = db.assess_adherence(today, acts)
+        self.assertIn('no había', result['yesterday'])
+        self.assertIn('Correr', result['recorded'])

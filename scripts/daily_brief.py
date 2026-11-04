@@ -20,6 +20,7 @@ Variables de entorno requeridas (se configuran como GitHub Secrets):
 import os
 import smtplib
 import ssl
+import re
 from html import escape
 from zoneinfo import ZoneInfo
 from datetime import date, datetime, timedelta, timezone
@@ -231,46 +232,126 @@ def get_today_plan(today):
     }
 
 
+def _activity_summary(activities):
+    """Actividad de ayer, incluyendo deportes distintos de carrera o fuerza."""
+    if not activities:
+        return "No hay actividades registradas en Strava; podría faltar alguna sincronización."
+    items = []
+    for a in activities:
+        details = []
+        if a.get("km", 0) > 0:
+            details.append(f"{a['km']:.1f} km")
+        if a.get("moving_time", 0) > 0:
+            details.append(f"{round(a['moving_time'] / 60)} min en movimiento")
+        if a.get("avg_hr") is not None:
+            details.append(f"FC media {round(a['avg_hr'])} ppm")
+        suffix = f" · {', '.join(details)}" if details else ""
+        items.append(f"{a.get('name') or 'Actividad'} ({a.get('type') or 'tipo desconocido'}){suffix}")
+    return " | ".join(items)
+
+
+def _high_effort_indicators(activities):
+    """Indicadores conservadores, no una medición clínica de la carga."""
+    indicators = []
+    for a in activities:
+        hr = a.get("avg_hr")
+        if hr is not None and hr >= stats.karvonen(HR_REST, HR_MAX)["Z4"][0]:
+            indicators.append("FC media en Z4 o superior según las zonas de referencia")
+        if a.get("is_run") and a.get("km", 0) >= 10:
+            indicators.append("carrera de al menos 10 km")
+        if a.get("is_run") and a.get("moving_time", 0) >= 3600:
+            indicators.append("carrera de al menos 60 minutos")
+        if a.get("race") and a.get("is_run"):
+            indicators.append("actividad marcada como carrera")
+    return list(dict.fromkeys(indicators))
+
+
 def assess_adherence(today, acts):
-    """Comparación orientativa por tipo, no verifica intensidad ni registros externos."""
+    """Comparación orientativa del plan con todo lo registrado el día anterior."""
     yesterday = today - timedelta(days=1)
     previous, planned = get_today_plan(yesterday), get_today_plan(today)
+    today_desc = (planned or {}).get("session_desc", "Plan aún no iniciado.")
+    seen = None if acts is None else [a for a in acts if a.get("date") == yesterday]
+    recorded = "Strava no está disponible; no se puede comprobar qué se hizo." if seen is None else _activity_summary(seen)
     if not previous or not planned or yesterday < PLAN_START or yesterday >= PLAN_START + timedelta(weeks=len(WEEKS)):
-        return {"yesterday": "Ayer no había una sesión dentro del plan.", "yesterday_plan": "Fuera del plan.", "today": (planned or {}).get("session_desc", "Plan aún no iniciado."), "advice": "Sin comparación disponible."}
-    if acts is None:
-        return {"yesterday": "No se pudo consultar Strava; no se puede determinar el cumplimiento.", "yesterday_plan": previous["session_desc"], "today": planned["session_desc"], "advice": "Mantén el plan solo si te encuentras bien; comprueba tus registros."}
-    seen = [a for a in acts if a.get("date") == yesterday]
+        return {"yesterday": "Ayer no había una sesión dentro del plan; no se puede evaluar el cumplimiento.",
+                "yesterday_plan": "Fuera del plan.", "recorded": recorded, "today": today_desc,
+                "advice": "Sin comparación disponible; ten en cuenta las actividades registradas y tus sensaciones."}
+    if seen is None:
+        return {"yesterday": "No se pudo consultar Strava; no se puede determinar el cumplimiento.",
+                "yesterday_plan": previous["session_desc"], "recorded": recorded, "today": today_desc,
+                "advice": "Comprueba tus registros y prioriza recuperación si notas fatiga."}
+
     running = [a for a in seen if a.get("is_run")]
     strength = [a for a in seen if a.get("is_strength")]
+    other = [a for a in seen if not a.get("is_run") and not a.get("is_strength")]
+    high = _high_effort_indicators(seen)
     prev_type = previous["session_type"]
     optional_run = prev_type != "descanso" and "o descanso" in previous["session_desc"].lower()
-    if prev_type == "descanso":
-        status = ("Ayer se registró fuerza; era opcional en el plan." if strength else
-                  "Ayer no consta fuerza en Strava; era opcional y puede no haberse registrado.")
-        if running:
-            status += " Además, se registró una carrera en ese día flexible."
+    flexible = prev_type == "descanso" or optional_run
+    if optional_run and not seen:
+        status = "Ayer no consta el rodaje opcional: el descanso también estaba previsto como opción. Comprueba si falta alguna actividad sin sincronizar."
+    elif flexible and not seen:
+        status = "Ayer no hay actividad registrada: coincide con la opción de descanso prevista. La fuerza era opcional; comprueba si falta alguna actividad sin sincronizar."
+    elif flexible and running and not optional_run:
+        status = "Ayer se registró una carrera no prevista en un día de descanso o fuerza opcional: se aparta del plan."
+        if high:
+            status += " Posible esfuerzo elevado: " + ", ".join(high) + "; puede reducir la recuperación."
+        else:
+            status += " Su intensidad real no puede determinarse solo por el registro."
+        if strength:
+            status += " También se registró fuerza opcional."
     elif optional_run and not running:
         status = "Ayer no consta el rodaje opcional; el descanso también estaba previsto como opción."
+        if strength:
+            status += " Se registró fuerza adicional."
+        if other:
+            status += " Hubo otras actividades: valora su esfuerzo antes de decidir la sesión de hoy."
+    elif flexible and strength and not running:
+        status = "Ayer se registró fuerza opcional, conforme a una de las opciones previstas."
+        if other:
+            status += " También hubo otras actividades; revisa su carga."
+    elif flexible and not running and other:
+        status = "Ayer se registraron otras actividades en un día flexible; no estaban descritas en el plan y su intensidad puede variar."
     elif running:
-        status = "Ayer se registró una carrera; solo se comprueba el tipo, no el ritmo ni el cumplimiento completo."
+        status = "Ayer se registró una carrera del tipo previsto; solo se comprueba el tipo, no el ritmo ni el cumplimiento completo."
+        if prev_type in ("facil", "larga"):
+            distance = re.search(r"(?<!\w)(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(\d+(?:[.,]\d+)?))?\s*km\b", previous["session_desc"], re.I)
+            if distance:
+                low = float(distance.group(1).replace(",", "."))
+                high_km = float((distance.group(2) or distance.group(1)).replace(",", "."))
+                actual = sum(a.get("km", 0) for a in running)
+                status += f" Distancia registrada: {actual:.1f} km; referencia prevista: {low:g}–{high_km:g} km."
+                if actual < low * 0.8 or actual > high_km * 1.2:
+                    status += " La distancia difiere de la referencia; puede incluir calentamiento o datos sin sincronizar."
+        if prev_type == "facil" and any("Z4" in item for item in high):
+            status += " La FC media registrada supera el techo de Z2; revisa si era un rodaje fácil o si hubo segmentos intensos."
+        if strength or other:
+            status += " También hubo otras actividades que pueden añadir carga."
     else:
         status = "Ayer no aparece la carrera prevista en Strava; podría no haberse registrado o sincronizado."
+        if strength or other:
+            status += " Sí se registraron otras actividades, indicadas arriba."
+
     race_today = today in (date(2026, 11, 8), date(2026, 11, 29), date(2027, 1, 24))
     if race_today:
-        advice = "Día de carrera: no recuperes sesiones perdidas; ajusta el esfuerzo a tus sensaciones."
+        advice = "Día de carrera: no recuperes sesiones perdidas; ajusta el esfuerzo a tus sensaciones. Ante dolor o fatiga considerable, prioriza la salud y valora no competir."
+    elif high:
+        advice = "Por los indicadores de carga de ayer, prioriza descanso o rodaje Z2 suave en lugar de intensidad; si hay dolor o fatiga notable, descansa. No acumules sesiones."
+    elif flexible and running and not optional_run:
+        advice = "La carrera no estaba prevista ayer. Si fue exigente o notas fatiga, cambia la calidad de hoy por descanso o Z2 suave; no recuperes sesiones perdidas."
+    elif other:
+        advice = "Ten en cuenta el esfuerzo de las otras actividades; si fueron exigentes o hay fatiga, elige descanso o Z2 suave en lugar de calidad."
     elif prev_type != "descanso" and not running and not optional_run:
         advice = "No acumules la sesión perdida: mantén lo previsto si estás recuperado, o sustituye la calidad por descanso o rodaje suave."
     elif prev_type == "descanso" and not strength and planned["session_type"] == "descanso":
         advice = "Si estás recuperado, puedes hacer 20–25 min de fuerza suave opcional; si hay fatiga, descansa."
-    elif prev_type == "descanso" and not strength and not running:
-        advice = "La fuerza era opcional: no la acumules hoy. Mantén lo previsto si estás recuperado o elige descanso o rodaje suave si notas fatiga."
-    elif running and any(a.get("km", 0) >= 10 for a in running) and planned["session_type"] in ("calidad", "facil"):
-        advice = "Tras una salida larga, si notas fatiga, sustituye la sesión por rodaje Z2 suave o descanso; no intentes compensar kilómetros."
-    elif prev_type == "descanso" and running and planned["session_type"] == "calidad":
-        advice = "Ayer hubo carrera en día flexible: si fue exigente o hay fatiga, sustituye la calidad por Z2 suave o descanso."
+    elif prev_type == "descanso" and not seen:
+        advice = "La fuerza era opcional; mantén la sesión prevista si estás recuperado y prioriza descanso ante dolor o fatiga."
     else:
         advice = "Mantén la sesión prevista si te encuentras bien; ante dolor o fatiga, prioriza descanso."
-    return {"yesterday": status, "yesterday_plan": previous["session_desc"], "today": planned["session_desc"], "advice": advice}
+    return {"yesterday": status, "yesterday_plan": previous["session_desc"], "recorded": recorded,
+            "today": today_desc, "advice": advice}
 
 
 # ---------------------------------------------------------------------------
@@ -392,7 +473,7 @@ def build_email_html(today, plan, strava, coros):
     <h3>Entrenamiento de hoy — Semana {plan['week_num']} · Bloque {plan['bloque']}</h3>
     <p>{escape(plan['session_desc'])}</p>
     <h3>Seguimiento del plan</h3>
-    <p><b>Plan de ayer:</b> {escape(adherence['yesterday_plan'])}<br>{escape(adherence['yesterday'])}<br><b>Alternativa orientativa:</b> {escape(adherence['advice'])}</p>
+    <p><b>Plan de ayer:</b> {escape(adherence['yesterday_plan'])}<br><b>Registrado ayer:</b> {escape(adherence['recorded'])}<br>{escape(adherence['yesterday'])}<br><b>Alternativa orientativa:</b> {escape(adherence['advice'])}</p>
     {nota_html}
     <p style="font-size:12px;color:#888;">
     Zonas de FC (Karvonen, reposo {hr_rest} / máx {HR_MAX}){zone_note}:
