@@ -662,3 +662,74 @@ class TestFormatosAdicionales(unittest.TestCase):
     def test_json_dentro_del_contenido_estructurado(self):
         response = {"structuredContent": {"data": json.dumps({"sleep": {"happenDay": 20261031, "mainSleepMinutes": 450}})}}
         self.assertEqual(coros_mcp.parse_sleep(response), [{"date": "2026-10-31", "sleep_hours": 7.5}])
+
+class TestPasosMCP(unittest.TestCase):
+    def test_json_texto_ceros_y_valores_invalidos(self):
+        result = {"structuredContent": {"days": [
+            {"happenDay": 20261103, "steps": 12345},
+            {"date": "2026-11-02", "stepCount": "8,500"},
+            {"date": "2026-11-01", "steps": 0},
+            {"date": "2026-10-31", "steps": -1}]}}
+        self.assertEqual(coros_mcp.parse_steps(result), [
+            {"date": "2026-11-01", "steps": 0},
+            {"date": "2026-11-02", "steps": 8500},
+            {"date": "2026-11-03", "steps": 12345}])
+        text = 'Daily Health\n2026-11-02\nSteps: 10,225\n2026-11-03\nSteps: 9,010'
+        self.assertEqual(coros_mcp.parse_steps({"content": [{"type": "text", "text": text}]}), [
+            {"date": "2026-11-02", "steps": 10225}, {"date": "2026-11-03", "steps": 9010}])
+
+    def test_pasos_comparten_autorizacion_sin_perder_sueno_si_falla(self):
+        tools = [{"name": "querySleepOverview"}, {"name": "queryDailyHealthData", "inputSchema": {"properties": {"days": {"maximum": 7}}}}]
+        sleep = {"content": [{"type": "text", "text": f'{date.today().isoformat()}\nMain Sleep (asleep): 7h 30min'}]}
+        def tool(url, access, name, args):
+            if name == 'queryDailyHealthData':
+                self.assertEqual(args, {'days': 7})
+                raise coros_mcp.CorosMCPError('no disponible')
+            return sleep
+        health = []
+        with mock.patch.object(coros_mcp, 'initialize'), mock.patch.object(coros_mcp, 'list_tools', return_value=tools), \
+             mock.patch.object(coros_mcp, 'call_tool', side_effect=tool):
+            nights, _ = coros_mcp.fetch_sleep(days=1, access_token='at', issuer='https://mcpeu.coros.com', health_out=health)
+        self.assertEqual(nights[0]['sleep_hours'], 7.5)
+        self.assertEqual(health, [])
+
+    def test_overlay_30_dias_y_media_14_sin_mutar(self):
+        today = date(2026, 11, 4)
+        data = {"days": [{"date": "2026-11-03", "steps": None, "hrv": 55}], "latest_14": {"hrv_avg": 55}}
+        merged = coros_data.overlay_steps(data, {"2026-11-03": 12000, "2026-10-25": 8000,
+                                                  "2026-10-01": 90000}, today=today)
+        self.assertEqual(merged['latest_14']['steps_avg'], 10000)
+        self.assertEqual(merged['latest_14']['hrv_avg'], 55)
+        self.assertIsNone(data['days'][0]['steps'])
+        self.assertEqual(merged['steps_source'], 'COROS MCP oficial')
+
+    def test_fichero_compartido_y_media_sueno(self):
+        now = date.today()
+        yesterday = (now - timedelta(days=1)).isoformat()
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / 'sleep.json'
+            coros_mcp.write_sleep([{'date': yesterday, 'sleep_hours': 7.5}], p,
+                                  health_days=[{'date': yesterday, 'steps': 12345}])
+            data = coros_data.load(Path(tmp) / 'absent.json', p)
+        self.assertEqual(data['latest_14']['sleep_hours_avg'], 7.5)
+        self.assertEqual(data['latest_14']['sleep_n_days'], 1)
+        self.assertEqual(data['latest_14']['steps_avg'], 12345)
+        self.assertEqual(data['days'][0]['steps'], 12345)
+
+    def test_pasos_exito_y_una_sola_renovacion(self):
+        today = date.today().isoformat()
+        tools = [{"name": "querySleepOverview"}, {"name": "queryDailyHealthData"}]
+        def tool(url, access, name, args):
+            if name == 'queryDailyHealthData':
+                return {'structuredContent': {'data': [{'date': today, 'steps': 9500}]}}
+            return {'content': [{'type': 'text', 'text': f'{today}\nMain Sleep (asleep): 7h 30min'}]}
+        health = []
+        with mock.patch.object(coros_mcp, 'initialize'), mock.patch.object(coros_mcp, 'list_tools', return_value=tools), \
+             mock.patch.object(coros_mcp, 'refresh_access_token', return_value=('at', 'rotado')) as refresh, \
+             mock.patch.object(coros_mcp, 'call_tool', side_effect=tool):
+            nights, token = coros_mcp.fetch_sleep(days=1, client_id='cid', refresh_token='old',
+                                                   issuer='https://mcpeu.coros.com', health_out=health)
+        self.assertEqual(health, [{'date': today, 'steps': 9500}])
+        self.assertEqual(nights[0]['sleep_hours'], 7.5)
+        self.assertEqual(token, 'rotado')
+        refresh.assert_called_once()

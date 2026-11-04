@@ -420,7 +420,7 @@ def apply_coros(html, coros, today, notes=None):
             html = replace_marked_html(
                 html, "RHR_CARD_SUB",
                 f"{rango}, últimos {last14.get('n_days', 14)} días desde el reloj Coros "
-                f"(actualizado {coros.get('date', '—')}, API no oficial).",
+                f"(último dato {coros.get('steps_date') or coros.get('date', '—')}, {'MCP oficial' if coros.get('steps_source') else 'API no oficial'}).",
             )
         notes.append(f"FC reposo 14 días: {round(rhr_avg)} bpm")
 
@@ -449,9 +449,14 @@ def apply_coros(html, coros, today, notes=None):
             html = replace_marked_html(
                 html, "STEPS_CARD_SUB",
                 f"{rango}Media de los últimos {len(steps_days) or 14} días desde Coros "
-                f"(actualizado {coros.get('date', '—')}, API no oficial).",
+                f"(último dato {coros.get('steps_date') or coros.get('date', '—')}, {'MCP oficial' if coros.get('steps_source') else 'API no oficial'}).",
             )
         notes.append(f"pasos 14 días: {round(steps_avg)}")
+    else:
+        if has_marker(html, "STEPS_CARD"):
+            html = replace_marked_html(html, "STEPS_CARD", "—")
+        if has_marker(html, "STEPS_CARD_SUB"):
+            html = replace_marked_html(html, "STEPS_CARD_SUB", "Sin datos de pasos recientes en COROS.")
 
     # 3) Gráfico FC reposo — últimos 30 días
     last30 = [days[d] for d in sorted(days)[-30:]]
@@ -497,13 +502,14 @@ def apply_coros(html, coros, today, notes=None):
         if has_marker(html, "SLEEP_14D_AVG"):
             html = replace_marked_html(html, "SLEEP_14D_AVG", coros_data.fmt_hours(sleep_avg))
         if has_marker(html, "SLEEP_14D_SUB"):
-            html = replace_marked_html(html, "SLEEP_14D_SUB", f"Media real de {last14.get('n_days', 14)} días leída de Coros.")
+            html = replace_marked_html(html, "SLEEP_14D_SUB", f"Media real de {last14.get('sleep_n_days', last14.get('n_days', 14))} noches leída de Coros.")
         notes.append(f"sueño 14 días: {coros_data.fmt_hours(sleep_avg)}")
-    elif has_marker(html, "SLEEP_14D_SUB"):
-        notes.append(
-            "sueño: Coros no lo expone en analyse/query → sigue manual "
-            "(ver SLEEP_KEYS en scripts/coros_fetch.mjs)"
-        )
+    else:
+        if has_marker(html, "SLEEP_14D_AVG"):
+            html = replace_marked_html(html, "SLEEP_14D_AVG", "—")
+        if has_marker(html, "SLEEP_14D_SUB"):
+            html = replace_marked_html(html, "SLEEP_14D_SUB", "Sin datos de sueño en los últimos 14 días.")
+        notes.append("sueño: sin datos recientes de la consulta MCP")
 
     return html
 
@@ -712,6 +718,8 @@ def apply_dieta(html, acts, coros, today, notes):
         html = set_html(html, "DIETA_ACTIVITY",
                         f"(carreras + ~{fmt_miles(steps_avg)} pasos/día de media en 14 días, vía Coros)",
                         notes, f"dieta: pasos {round(steps_avg)}")
+    elif coros and has_marker(html, "DIETA_ACTIVITY"):
+        html = set_html(html, "DIETA_ACTIVITY", "(carreras; sin datos recientes de pasos)")
 
     # Contexto real de las últimas semanas
     if (acts or coros) and has_marker(html, "DIETA_CONTEXT"):

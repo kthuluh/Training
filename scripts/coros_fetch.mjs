@@ -50,8 +50,8 @@
  *   sueño. Este script AUN ASÍ intenta encontrarlo: mira si el día trae alguna
  *   clave suelta tipo `sleepDuration`/`totalSleep`/… (la respuesta de Coros
  *   trae más campos de los que la librería tipa) y, si la encuentra, la usa.
- *   Si no la hay, `sleep_hours` queda `null` y el correo/dashboard lo marcan
- *   como manual. Usa COROS_DEBUG=1 una vez para ver los nombres reales.
+ *   Si no la hay, `sleep_hours` queda `null` en este fichero: el siguiente
+ *   paso MCP consulta el sueño oficial y superpone los datos por fecha.
  *
  * ── Las fases del sueño NO se piden, a propósito ───────────────────────────
  *   Ligero / profundo / REM solo salen por la API **móvil** de Coros, que se
@@ -294,7 +294,7 @@ async function main() {
         );
         const horasPrimero = sleepHoursOf(rawDays[0]);
         console.log(
-            `· sleepHoursOf() del primer día: ${horasPrimero === null ? "null → sleep_hours queda manual" : `${horasPrimero} h`}`,
+            `· sleepHoursOf() del primer día: ${horasPrimero === null ? "null → pendiente del paso MCP" : `${horasPrimero} h`}`,
         );
         console.log(
             "· Fases (ligero/profundo/REM): no se piden — exigen la API móvil con claves del APK " +
@@ -387,12 +387,6 @@ async function main() {
         sleep_phases: false,
     };
     const warnings = [];
-    if (!available.sleep_hours) {
-        warnings.push(
-            "sleep_hours no disponible: @pinta365/coros 0.0.1 no expone el endpoint de sueño (sólo HRV nocturna). " +
-                'Si tu respuesta de Coros trae horas de sueño, ejecuta con COROS_DEBUG=1, mira la clave y añádela a SLEEP_KEYS en scripts/coros_fetch.mjs.',
-        );
-    }
     if (rawDays.length === 0) {
         warnings.push("analyse/query devolvió dayList vacío (¿cuenta con EvoLab activado? ¿region correcto?).");
     }
@@ -438,8 +432,8 @@ async function main() {
     console.log(
         `  ${fmt("FC reposo", payload.latest?.resting_hr, " bpm")}  ·  ` +
             `${fmt("HRV", payload.latest?.hrv, " ms")}  ·  ` +
-            `${fmt("sueño", payload.latest?.sleep_hours, " h")}  ·  ` +
-            `${fmt("pasos", payload.latest_14?.steps_avg !== null ? Math.round(payload.latest_14?.steps_avg) : null, "")}  ·  ` +
+            `${payload.latest?.sleep_hours == null ? "sueño: pendiente de consulta MCP" : fmt("sueño", payload.latest.sleep_hours, " h")}  ·  ` +
+            `${payload.latest_14?.steps_avg == null ? "pasos: pendiente de consulta MCP" : fmt("pasos", Math.round(payload.latest_14.steps_avg), "")}  ·  ` +
             `${fmt("ratio carga", payload.latest?.load_ratio, "")}`,
     );
     for (const w of warnings) console.log(`  ⚠ ${w}`);

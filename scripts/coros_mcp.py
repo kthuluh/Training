@@ -540,8 +540,55 @@ def sleep_response_shape(result):
     return f"JSON={type(payload).__name__}; textos={len(texts)}; indicadores={','.join(flags) or 'ninguno'}"
 
 
+def parse_steps(result):
+    """Pasos por fecha del MCP: JSON o texto, sin estimar días ausentes."""
+    records = {}
+    def walk(obj, inherited=None, depth=0):
+        if depth > 10:
+            return
+        if isinstance(obj, list):
+            for item in obj: walk(item, inherited, depth + 1)
+        elif isinstance(obj, dict):
+            day = _date_of(obj) or _to_date(obj.get("summaryDate")) or _to_date(obj.get("healthDate")) or inherited
+            for key in ("steps", "step", "stepCount", "stepsCount", "totalSteps", "dailySteps"):
+                value = obj.get(key)
+                if isinstance(value, str): value = value.replace(",", "").strip()
+                if isinstance(value, bool): continue
+                try:
+                    steps = float(value)
+                    if day and steps.is_integer() and 0 <= steps <= 200000:
+                        records[day.isoformat()] = int(steps)
+                        break
+                except (TypeError, ValueError):
+                    pass
+            for key, value in obj.items():
+                if isinstance(value, (dict, list, str)) and key not in ("date", "day", "happenDay"):
+                    walk(value, _to_date(key) or day, depth + 1)
+        elif isinstance(obj, str):
+            try:
+                parsed = json.loads(obj)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, (dict, list, str)) and parsed != obj:
+                walk(parsed, inherited, depth + 1)
+                return
+            matches = list(re.finditer(r"\b(20\d{2}[-/]\d{2}[-/]\d{2}|20\d{6})\b", obj))
+            for i, match in enumerate(matches):
+                day = _to_date(match.group(1).replace("/", "-"))
+                section = obj[match.end():matches[i+1].start() if i+1 < len(matches) else len(obj)]
+                m = re.search(r"(?i)\b(?:steps?|step count|pasos)\s*[:=–-]\s*([\d,]+)", section)
+                if day and m:
+                    steps = int(m.group(1).replace(",", ""))
+                    if steps <= 200000: records[day.isoformat()] = steps
+    walk(result_payload(result))
+    for block in (result or {}).get("content", []):
+        if isinstance(block, dict) and block.get("type") == "text":
+            walk(block.get("text"))
+    return [{"date": day, "steps": records[day]} for day in sorted(records)]
+
+
 def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=None,
-                issuer=None, mcp_url=None, token_store=None):
+                issuer=None, mcp_url=None, token_store=None, health_out=None):
     """Devuelve (noches, nuevo_refresh_token). Lanza CorosMCPError si algo falla.
 
     `nuevo_refresh_token` es None cuando se entra con un access token directo
@@ -601,18 +648,35 @@ def fetch_sleep(days=None, *, client_id=None, refresh_token=None, access_token=N
                 out[row["date"]] = row
         shapes.append(sleep_response_shape(result))
         start = end + timedelta(days=1)
+    if health_out is not None:
+        health_tool = next((t for t in tools if t.get("name") == "queryDailyHealthData"), None)
+        if health_tool:
+            try:
+                prop = ((health_tool.get("inputSchema") or {}).get("properties") or {}).get("days") or {}
+                limit = prop.get("maximum") if isinstance(prop, dict) else None
+                requested = min(30, int(limit)) if isinstance(limit, (int, float)) and not isinstance(limit, bool) and limit >= 1 else 30
+                health = call_tool(mcp_url, access, "queryDailyHealthData", {"days": requested})
+                health_out.extend(row for row in parse_steps(health)
+                                  if (day := _to_date(row["date"])) and hoy - timedelta(days=29) <= day <= hoy)
+                if not health_out:
+                    print("COROS pasos: sin datos interpretables en queryDailyHealthData; " + sleep_response_shape(health))
+            except (CorosMCPError, OSError):
+                print("⚠ COROS pasos: no se pudo consultar queryDailyHealthData; el sueño sigue disponible.")
+        else:
+            print("⚠ COROS pasos: queryDailyHealthData no está disponible en esta cuenta.")
     if not out:
         # Sin datos de salud ni tokens: solo describe el tipo de respuesta.
         print("COROS sueño: 0 noches interpretables. Estructura (sin datos personales): " + "; ".join(sorted(set(shapes))))
     return [out[k] for k in sorted(out)], nuevo_refresh
 
 
-def write_sleep(nights, path=None, source="COROS MCP oficial (sueño)"):
+def write_sleep(nights, path=None, source="COROS MCP oficial (sueño)", health_days=None):
     payload = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": source,
         "days": nights,
+        "health_days": health_days or [],
         "warnings": [] if nights else ["COROS no devolvió ninguna noche con horas de sueño."],
     }
     p = Path(path or SLEEP_OUT_PATH)
@@ -659,13 +723,17 @@ def main(argv=None):
                                  os.environ.get("COROS_MCP_CLIENT_ID"),
                                  os.environ.get("COROS_MCP_REFRESH_TOKEN"), resolved)
         issuer = resolved
-    nights, nuevo = fetch_sleep(issuer=issuer, token_store=store)
+    health_days = []
+    nights, nuevo = fetch_sleep(issuer=issuer, token_store=store, health_out=health_days)
     if "--dump" in argv:
         print(json.dumps(nights, indent=2, ensure_ascii=False))
-    p = write_sleep(nights, opt("--out"))
+    p = write_sleep(nights, opt("--out"), health_days=health_days)
     print(f"{'✓' if nights else '⚠'} {p} escrito ({len(nights)} noches con sueño)")
     if nights:
         print(f"  última: {nights[-1]['date']} → {nights[-1]['sleep_hours']} h")
+    print(f"  pasos: {len(health_days)} días con datos (MCP oficial)")
+    if health_days:
+        print(f"  último registro de pasos: {health_days[-1]['date']} → {health_days[-1]['steps']} pasos")
     if store is None and nuevo and nuevo != os.environ.get("COROS_MCP_REFRESH_TOKEN"):
         print("  ⚠ COROS rotó el refresh token: actualiza el secreto COROS_MCP_REFRESH_TOKEN.")
     return 0

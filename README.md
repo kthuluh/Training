@@ -162,7 +162,8 @@ Lo que usa el script es `client.getAnalyse({startDate, endDate})` (endpoint
 * **pasos** del día, si la respuesta trae alguna clave tipo `steps` /
   `stepCount` / `dailySteps` (mira `STEPS_KEYS` en `scripts/coros_fetch.mjs`;
   acepta el valor en miles, `14.2` → 14.200). Si no viene, `steps` queda `null`
-  y la tarjeta de pasos del dashboard se queda como esté (manual).
+  y el siguiente paso MCP intenta obtenerlos con `queryDailyHealthData`. Si tampoco
+  los devuelve, la tarjeta muestra que faltan datos en vez de cifras antiguas.
 
 **Horas de sueño: por esta vía, no.** `@pinta365/coros` 0.0.1 no tiene endpoint
 de sueño, solo HRV nocturna. El script aun así lo intenta: la respuesta de Coros
@@ -234,7 +235,9 @@ main sleep duration, deep/light/REM ratios, wakefulness, sleep window and nap
 information"*. Es API oficial, no desloguea nada y se refresca con un refresh
 token igual que Strava.
 
-`scripts/coros_mcp.py` hace eso cada madrugada y escribe `coros_sleep.json`,
+`scripts/coros_mcp.py` hace eso cada madrugada y también intenta obtener los pasos
+con `queryDailyHealthData` usando el mismo acceso, sin una segunda renovación.
+Escribe ambos datos en `coros_sleep.json`,
 que `coros_data.load()` superpone sobre `coros_data.json`. O sea: el correo y el
 dashboard se enteran **sin tocar su código**, y si el paso falla el correo sale
 igual (la casilla en `—`).
