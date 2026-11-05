@@ -26,7 +26,7 @@ class AdherenceTests(unittest.TestCase):
         self.assertIn('no aparece', db.assess_adherence(d, [])['yesterday'])
         acts = stats.normalize([raw_activity(d - timedelta(days=1), 3, 20)])
         out = db.assess_adherence(d, acts)
-        self.assertIn('no el ritmo', out['yesterday'])
+        self.assertIn('no confirma por sí sola', out['yesterday'])
 
     def test_rodaje_o_descanso_no_se_marca_como_faltado(self):
         out = db.assess_adherence(date(2026, 11, 6), [])
@@ -134,7 +134,7 @@ class FullDayAdherenceTests(unittest.TestCase):
         acts = stats.normalize([raw_activity(d - timedelta(days=1), 5, 30),
                                 raw_activity(d - timedelta(days=1), 0, 20, type_='Yoga', name='Yoga')])
         result = db.assess_adherence(d, acts)
-        self.assertIn('no el ritmo', result['yesterday'])
+        self.assertIn('no confirma por sí sola', result['yesterday'])
         self.assertIn('Yoga', result['recorded'])
 
     def test_alta_intensidad_no_invalida_la_carrera_de_hoy(self):
@@ -168,7 +168,7 @@ class FullDayAdherenceTests(unittest.TestCase):
         self.assertIn('Distancia registrada: 12.0 km', result['yesterday'])
         self.assertIn('difiere de la referencia', result['yesterday'])
         self.assertIn('supera el techo de Z2', result['yesterday'])
-        self.assertIn('no el ritmo', result['yesterday'])
+        self.assertIn('no confirma por sí sola', result['yesterday'])
 
     def test_actividad_fuera_del_plan_sigue_visible(self):
         today = date(2027, 1, 26)
