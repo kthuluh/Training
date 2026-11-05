@@ -234,7 +234,7 @@ class TestMarkers(unittest.TestCase):
         "UPDATED_DATE", "FOOTER_INFO", "HERO_RHR", "HERO_RATIO", "RHR_CARD", "RHR_CARD_SUB",
         "HRV_CARD", "HRV_CARD_SUB", "SLEEP_14D_AVG", "SLEEP_14D_SUB", "STEPS_CARD", "STEPS_CARD_SUB",
         "LOAD_CAPTION", "PLAN_STATUS", "ENTRENO_PB", "ENTRENO_LAST4W", "ENTRENO_VOL_NOTE",
-        "ZONES_META", "ZONES_ROWS", "ENTRENO_STRENGTH_NOTE", "DIETA_ACTIVITY", "DIETA_CONTEXT",
+        "ZONES_META", "ZONES_ROWS", "ENTRENO_STRENGTH_NOTE", "DIETA_ACTIVITY", "DIETA_CONTEXT", "DIETA_MENU",
         "HABIT_01_BODY", "HABIT_02_BODY", "HABIT_03_BODY", "HABIT_05_BODY",
         "SLEEP_TITLE", "SLEEP_CARDS", "SLEEP_VERDICT", "SLEEP_NOTES", "HIST_COVERAGE_NOTE",
         "TREND_VOL_CARD", "TREND_RHR_CARD", "TREND_SLEEP_CARD", "TREND_VERDICT", "RACES",
@@ -368,7 +368,8 @@ class TestConDatos(unittest.TestCase):
 class TestSinDatos(unittest.TestCase):
     def test_sin_strava_ni_coros_solo_cambia_fecha_y_pie(self):
         html, notes = run_all_sections(new_html(), [], None)
-        original = ud.apply_habitos(new_html(), [], None, TODAY, [])
+        original = ud.apply_dieta(new_html(), [], None, TODAY, [])
+        original = ud.apply_habitos(original, [], None, TODAY, [])
         original = ud.apply_sleep(original, None, TODAY)
         original = ud.apply_recos(original, [], None, TODAY, [])
         original = ud.set_html(original, "RACES", "<p>Sin carreras identificadas en Strava este año. Marca la actividad como carrera o revisa su sincronización.</p>")

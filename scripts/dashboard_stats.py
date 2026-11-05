@@ -176,6 +176,7 @@ def normalize(raw_activities):
             "elapsed_time": int(_num(a.get("elapsed_time")) or 0),
             "elevation_m": _num(a.get("total_elevation_gain")) or 0.0,
             "avg_hr": _num(a.get("average_heartrate")),
+            "laps": a.get("laps") if isinstance(a.get("laps"), list) else None,
             "race": int(_num(a.get("workout_type")) or -1) == 1,
             "is_run": stype.lower() in RUN_TYPES,
             "is_walk": stype.lower() in WALK_TYPES,

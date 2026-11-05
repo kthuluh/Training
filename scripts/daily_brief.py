@@ -149,6 +149,32 @@ def strava_activities(access_token, after_epoch, before_epoch):
     raise RuntimeError("Strava: demasiadas actividades para completar el periodo")
 
 
+def enrich_yesterday_laps(raw, access_token, today):
+    """Lee vueltas de sesiones relevantes de ayer; un fallo no impide el correo."""
+    prev = get_today_plan(today - timedelta(days=1))
+    if not prev or (prev["session_type"] != "calidad" and not
+                    (prev["session_type"] == "larga" and re.search(r"\d+:\d{2}\s*[-–]\s*\d+:\d{2}\s*/km", prev["session_desc"]))):
+        return
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        if (stats._local_date(item) != today - timedelta(days=1) or
+                str(item.get("sport_type") or item.get("type") or "").lower() not in stats.RUN_TYPES):
+            continue
+        activity_id = item.get("id")
+        if not str(activity_id).isdigit():
+            continue
+        try:
+            response = requests.get(f"https://www.strava.com/api/v3/activities/{activity_id}/laps",
+                                    headers={"Authorization": f"Bearer {access_token}"}, timeout=30)
+            response.raise_for_status()
+            laps = response.json()
+            if isinstance(laps, list):
+                item["laps"] = laps
+        except (requests.RequestException, ValueError, TypeError):
+            print("Vueltas de Strava no disponibles; el análisis de series será parcial.")
+
+
 def fmt_pace(distance_m, moving_time_s):
     if not distance_m:
         return "-"
@@ -164,7 +190,9 @@ def get_strava_summary(today):
     start = int(datetime.combine(today - timedelta(days=7), datetime.min.time(), tzinfo=zone).timestamp())
     end = int(datetime.combine(today, datetime.min.time(), tzinfo=zone).timestamp())
     try:
-        raw = strava_activities(strava_access_token(), start, end)
+        token = strava_access_token()
+        raw = strava_activities(token, start, end)
+        enrich_yesterday_laps(raw, token, today)
         acts = [a for a in stats.normalize(raw) if today - timedelta(days=7) <= a["date"] < today]
     except (requests.RequestException, KeyError, ValueError, RuntimeError) as exc:
         print(f"Strava no disponible para el seguimiento: {type(exc).__name__}")
@@ -266,6 +294,88 @@ def _high_effort_indicators(activities):
     return list(dict.fromkeys(indicators))
 
 
+def _pace_text(seconds):
+    seconds = round(seconds)
+    return f"{seconds // 60}:{seconds % 60:02d}/km"
+
+
+def analyse_training(previous, running):
+    """Compara métricas disponibles sin confundir ritmo medio con ritmo de series."""
+    if not running:
+        return "Sin carrera registrada no se pueden evaluar distancia, ritmos ni frecuencia cardiaca."
+    description = previous["session_desc"]
+    session_type = previous["session_type"]
+    result = []
+    for activity in running:
+        km, elapsed = activity.get("km") or 0, activity.get("moving_time") or 0
+        if km > 0 and elapsed > 0:
+            result.append(f"Ritmo medio de {activity.get('name') or 'la salida'}: {_pace_text(elapsed / km)} (incluye calentamiento y recuperación).")
+        else:
+            result.append("Ritmo medio no disponible: faltan distancia o tiempo en movimiento.")
+    pace = re.search(r"(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})\s*/km", description, re.I)
+    if session_type == "facil":
+        if pace:
+            low = int(pace.group(1))*60 + int(pace.group(2))
+            high = int(pace.group(3))*60 + int(pace.group(4))
+            valid = [a for a in running if a.get("km", 0) > 0 and a.get("moving_time", 0) > 0]
+            if valid:
+                avg = sum(a["moving_time"] for a in valid) / sum(a["km"] for a in valid)
+                result.append(f"Referencia del rodaje: {_pace_text(low)}–{_pace_text(high)}; media global {_pace_text(avg)} " +
+                              ("dentro del rango." if low <= avg <= high else "fuera del rango; revisa pausas y desnivel."))
+        if "z2" in description.lower():
+            hrs = [a["avg_hr"] for a in running if a.get("avg_hr") is not None]
+            if hrs:
+                ceiling = stats.karvonen(HR_REST, HR_MAX)["Z2"][1]
+                result.append(f"Techo Z2 de referencia (reposo {HR_REST}, máxima {HR_MAX}): {ceiling} ppm; FC media registrada: " + ", ".join(f"{round(h)} ppm" for h in hrs) + (". Faltan datos de pulso en alguna actividad." if len(hrs) < len(running) else ".") + " La media no indica el tiempo real en cada zona.")
+            else:
+                result.append("Sin FC registrada no se puede comprobar Z2.")
+    elif session_type == "calidad":
+        interval = re.search(r"(\d+)\s*[x×]\s*(\d+)\s*m\b", description, re.I)
+        if interval:
+            count, distance_m = int(interval.group(1)), int(interval.group(2))
+            laps = [lap for a in running for lap in (a.get("laps") or []) if isinstance(lap, dict)]
+            matching = []
+            for lap in laps:
+                try:
+                    d, t = float(lap.get("distance") or 0), float(lap.get("moving_time") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if distance_m * .85 <= d <= distance_m * 1.15 and t > 0:
+                    matching.append(t / (d / 1000))
+            if not laps:
+                result.append("Sin vueltas de Strava no se pueden verificar las repeticiones ni sus ritmos; el ritmo medio de la actividad no basta.")
+            else:
+                result.append(f"Vueltas compatibles por distancia: {len(matching)} de {count} repeticiones previstas (±15%). Las vueltas automáticas pueden no corresponder a series.")
+                if pace and matching:
+                    low = int(pace.group(1))*60 + int(pace.group(2))
+                    high = int(pace.group(3))*60 + int(pace.group(4))
+                    hits = sum(low <= value <= high for value in matching)
+                    result.append(f"Ritmo objetivo {_pace_text(low)}–{_pace_text(high)}: {hits} de {len(matching)} vueltas compatibles dentro del rango. No confirma la sesión completa.")
+                elif not pace:
+                    result.append("El plan no especifica un rango numérico de ritmo para estas repeticiones.")
+        else:
+            result.append("No hay segmentos verificables para comparar el ritmo específico; la media global incluye partes fáciles.")
+    elif session_type == "larga" and pace:
+        laps = [lap for a in running for lap in (a.get("laps") or []) if isinstance(lap, dict)]
+        if not laps:
+            result.append("Sin vueltas no se pueden evaluar los tramos a ritmo objetivo; la media global no basta.")
+        else:
+            low = int(pace.group(1))*60 + int(pace.group(2))
+            high = int(pace.group(3))*60 + int(pace.group(4))
+            matched = 0.0
+            for lap in laps:
+                try:
+                    d, t = float(lap.get("distance") or 0), float(lap.get("moving_time") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if d > 0 and t > 0 and low <= t / (d / 1000) <= high:
+                    matched += d / 1000
+            result.append(f"Vueltas dentro del ritmo {_pace_text(low)}–{_pace_text(high)}: {matched:.1f} km en total. No se comprueba si son consecutivas ni si las vueltas corresponden al tramo previsto.")
+    else:
+        result.append("El ritmo global no verifica tramos progresivos ni kilómetros a ritmo objetivo.")
+    return " ".join(result)
+
+
 def assess_adherence(today, acts):
     """Comparación orientativa del plan con todo lo registrado el día anterior."""
     yesterday = today - timedelta(days=1)
@@ -276,11 +386,11 @@ def assess_adherence(today, acts):
     if not previous or not planned or yesterday < PLAN_START or yesterday >= PLAN_START + timedelta(weeks=len(WEEKS)):
         return {"yesterday": "Ayer no había una sesión dentro del plan; no se puede evaluar el cumplimiento.",
                 "yesterday_plan": "Fuera del plan.", "recorded": recorded, "today": today_desc,
-                "advice": "Sin comparación disponible; ten en cuenta las actividades registradas y tus sensaciones."}
+                "analysis": "Sin sesión prevista no hay referencia de ritmos para comparar.", "advice": "Sin comparación disponible; ten en cuenta las actividades registradas y tus sensaciones."}
     if seen is None:
         return {"yesterday": "No se pudo consultar Strava; no se puede determinar el cumplimiento.",
                 "yesterday_plan": previous["session_desc"], "recorded": recorded, "today": today_desc,
-                "advice": "Comprueba tus registros y prioriza recuperación si notas fatiga."}
+                "analysis": "Análisis de ritmos y FC no disponible sin datos de Strava.", "advice": "Comprueba tus registros y prioriza recuperación si notas fatiga."}
 
     running = [a for a in seen if a.get("is_run")]
     strength = [a for a in seen if a.get("is_strength")]
@@ -314,7 +424,7 @@ def assess_adherence(today, acts):
     elif flexible and not running and other:
         status = "Ayer se registraron otras actividades en un día flexible; no estaban descritas en el plan y su intensidad puede variar."
     elif running:
-        status = "Ayer se registró una carrera del tipo previsto; solo se comprueba el tipo, no el ritmo ni el cumplimiento completo."
+        status = "Ayer se registró una carrera del tipo previsto; su presencia no confirma por sí sola el cumplimiento completo."
         if prev_type in ("facil", "larga"):
             distance = re.search(r"(?<!\w)(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(\d+(?:[.,]\d+)?))?\s*km\b", previous["session_desc"], re.I)
             if distance:
@@ -351,7 +461,7 @@ def assess_adherence(today, acts):
     else:
         advice = "Mantén la sesión prevista si te encuentras bien; ante dolor o fatiga, prioriza descanso."
     return {"yesterday": status, "yesterday_plan": previous["session_desc"], "recorded": recorded,
-            "today": today_desc, "advice": advice}
+            "today": today_desc, "analysis": analyse_training(previous, running), "advice": advice}
 
 
 # ---------------------------------------------------------------------------
@@ -473,7 +583,7 @@ def build_email_html(today, plan, strava, coros):
     <h3>Entrenamiento de hoy — Semana {plan['week_num']} · Bloque {plan['bloque']}</h3>
     <p>{escape(plan['session_desc'])}</p>
     <h3>Seguimiento del plan</h3>
-    <p><b>Plan de ayer:</b> {escape(adherence['yesterday_plan'])}<br><b>Registrado ayer:</b> {escape(adherence['recorded'])}<br>{escape(adherence['yesterday'])}<br><b>Alternativa orientativa:</b> {escape(adherence['advice'])}</p>
+    <p><b>Plan de ayer:</b> {escape(adherence['yesterday_plan'])}<br><b>Registrado ayer:</b> {escape(adherence['recorded'])}<br>{escape(adherence['yesterday'])}<br><b>Análisis:</b> {escape(adherence['analysis'])}<br><b>Alternativa orientativa:</b> {escape(adherence['advice'])}</p>
     {nota_html}
     <p style="font-size:12px;color:#888;">
     Zonas de FC (Karvonen, reposo {hr_rest} / máx {HR_MAX}){zone_note}:

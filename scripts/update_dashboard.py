@@ -158,7 +158,10 @@ def load_activities(today):
     token = strava_access_token()
     since = today - timedelta(days=STRAVA_HISTORY_DAYS)
     after = int(datetime.combine(since, datetime.min.time(), tzinfo=timezone.utc).timestamp())
-    return stats.normalize(strava_activities(token, after))
+    raw = strava_activities(token, after)
+    from daily_brief import enrich_yesterday_laps
+    enrich_yesterday_laps(raw, token, today)
+    return stats.normalize(raw)
 
 
 # ---------------------------------------------------------------------------
@@ -712,6 +715,30 @@ def apply_entreno(html, acts, coros, today, notes):
 # ---------------------------------------------------------------------------
 
 def apply_dieta(html, acts, coros, today, notes):
+    if has_marker(html, "DIETA_MENU"):
+        from daily_brief import get_today_plan, DIET
+        from meal_plan import menus_for
+        plan = get_today_plan(today)
+        if plan is None:
+            menu_html = '<div class="card">El plan todavía no ha empezado; no hay menú diario calculado.</div>'
+        else:
+            session_type = plan["session_type"]
+            targets = DIET[session_type]
+            menu_html = (f'<p class="sub">Hoy: {esc(today.isoformat())} · {esc(session_type)}. '
+                         f'Referencia del plan: {esc(targets["kcal"])}, proteína {esc(targets["prot"])}, '
+                         f'hidratos {esc(targets["carbs"])} y grasa {esc(targets["grasa"])}.</p>'
+                         '<div class="grid2">')
+            for i, menu in enumerate(menus_for(today, session_type), 1):
+                rows = ''.join(f'<li><b>{esc(name)}:</b> {esc(meal)}</li>' for name, meal in menu['meals'])
+                menu_html += (f'<div class="card"><h3>Opción {i} · día completo</h3><ul>{rows}</ul>'
+                              f'<p class="sub">Estimación: ~{menu["kcal"]} kcal · proteína {menu["protein"]} g · '
+                              f'hidratos {menu["carbs"]} g · grasa {menu["fat"]} g.</p></div>')
+            menu_html += ('</div><p class="sub">Cifras aproximadas calculadas con valores genéricos y 4/4/9 kcal por g; '
+                          'pueden variar por marca y preparación. Pesos de arroz, patata, lentejas, pollo y pescado ya cocinados; '
+                          'avena en seco y fruta sin piel. Escoge una opción completa: mezclar platos cambia los totales. '
+                          'Si cambias o descansas en lugar de la sesión prevista, reajusta las raciones. Ejemplos sin preferencias ni alergias conocidas; adapta ingredientes e hidratación y consulta '
+                          'a un dietista-nutricionista si tienes alergias, necesidades médicas o dudas.</p>')
+        html = set_html(html, "DIETA_MENU", menu_html, notes, "dieta: menús diarios actualizados")
     last14 = (coros or {}).get("latest_14") or {}
     steps_avg = stats.as_number(last14.get("steps_avg"))
 
@@ -1460,10 +1487,6 @@ def build_recos(acts, coros, today):
                   "La dieta utiliza un peso manual de referencia; comprueba y actualízalo si ha cambiado."))
     items.append((False, "Revisa las zonas de FC",
                   "Compara las zonas de Strava con las calculadas en el dashboard; no podemos comprobar automáticamente su configuración."))
-    items.append((False, "No tengo datos de Apple Salud / MiSalud",
-                  "Este panel se basa solo en Strava y Coros. Si quieres que las cifras de peso, pasos o FC se crucen también "
-                  "con Apple Salud, no hay conector directo: o pasas los datos a mano o revisas si Apple Salud sincroniza ya "
-                  "con Coros/Strava."))
     return items
 
 
@@ -1492,6 +1515,7 @@ def apply_adherence(html, acts, today, notes):
     result = assess_adherence(today, acts)
     content = (f'<div class="card"><h3>Ayer · {esc((today - timedelta(days=1)).isoformat())}</h3>'
                f'<p><b>Plan previsto:</b> {esc(result["yesterday_plan"])}</p><p><b>Registrado en Strava:</b> {esc(result["recorded"])}</p><p>{esc(result["yesterday"])}</p><h3>Plan de hoy</h3><p>{esc(result["today"])}</p>'
+               f'<h3>Análisis del entreno de ayer</h3><p>{esc(result["analysis"])}</p>'
                f'<h3>Alternativa orientativa</h3><p>{esc(result["advice"])}</p>'
                '<p class="sub">Basado solo en actividades registradas en Strava; no verifica cumplimiento exacto, actividades no sincronizadas ni sensaciones. No modifica el plan.</p></div>')
     return set_html(html, "ADHERENCE", content, notes, "seguimiento del plan actualizado")

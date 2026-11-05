@@ -339,7 +339,7 @@ Ahora se actualizan **todas las pestañas**, no solo la de Resumen general:
 | Resumen general | `HERO_RHR`, `HERO_RATIO`, `RHR_CARD`, `RHR_CARD_SUB`, `HRV_CARD`, `HRV_CARD_SUB`, `STEPS_CARD`, `STEPS_CARD_SUB`, `SLEEP_14D_AVG`, `SLEEP_14D_SUB`, `LOAD_CAPTION`, `RHR30_LABELS`, `RHR30_DATA`, `LOAD14_LABELS`, `LOAD14_SHORT`, `LOAD14_LONG` | Coros | tarjetas del hero y de "Estado actual", gráficos de FC reposo (30 d) y carga (14 d) |
 | Entrenamiento | `PLAN_STATUS` | — | en qué semana de las 20 estás |
 | Entrenamiento | `ENTRENO_PB`, `ENTRENO_LAST4W`, `ENTRENO_VOL_NOTE`, `ENTRENO_STRENGTH_NOTE`, `CHARTVOL_LABELS`, `CHARTVOL_RUN`, `CHARTVOL_WALK`, `ZONES_META`, `ZONES_ROWS` | Strava | mejores marcas 10K/21K de los últimos 12 meses, resumen de las últimas 4 semanas, gráfico de volumen (8 semanas, carrera + caminatas apiladas), tabla de zonas Karvonen y aviso de fuerza |
-| Dieta | `DIETA_ACTIVITY`, `DIETA_CONTEXT` | Coros + Strava | pasos reales de Coros y contexto de la semana (km, sesiones, ratio de carga) |
+| Dieta | `DIETA_ACTIVITY`, `DIETA_CONTEXT`, `DIETA_MENU` | Plan + Coros + Strava | contexto semanal y dos menús orientativos para la sesión prevista hoy |
 | Hábitos | `HABIT_01_BODY`, `HABIT_02_BODY`, `HABIT_03_BODY`, `HABIT_05_BODY` | Strava + Coros | última sesión de fuerza, noches más cortas, salidas que se pasan del techo de Z2 y rampa de volumen |
 | Hábitos | `SLEEP_TITLE`, `SLEEP_CARDS`, `SLEEP_VERDICT`, `SLEEP_NOTES`, `SLEEP30_LABELS`, `SLEEP30_DATA`, `SLEEP30_TARGET` | Coros | bloque *Análisis del sueño* al final de la pestaña: 4 tarjetas (media, noches en objetivo, deuda y tendencia 7 vs 7), gráfico de las últimas 30 noches contra el objetivo, veredicto y notas con lo que Coros no da |
 | Historial | `TREND_VOL_CARD`, `TREND_RHR_CARD`, `TREND_SLEEP_CARD`, `TREND_VERDICT` | Strava + Coros | las 4 últimas semanas completas frente a las 4 anteriores |
@@ -525,3 +525,22 @@ mayúsculas), etiquetadas como inferidas por el nombre. No se inventan resultado
 si no están marcadas como carrera. Si el Tast no aparece, revisa su nombre,
 visibilidad y sincronización en Strava. Los avisos de rampa de las pestañas
 usan las últimas cuatro semanas completas, no el máximo del trimestre.
+
+### Menús diarios y análisis de ritmos
+
+La pestaña Dieta muestra dos menús completos en función del tipo de sesión
+prevista. Los alimentos, pesos, calorías y macros son estimaciones genéricas,
+calculadas con 4/4/9 kcal por gramo; las raciones dependen de preparación,
+marcas y necesidades reales. Arroz, patata, lentejas, pollo y salmón se pesan
+cocinados; avena en seco y fruta sin piel. La aplicación no conoce alergias,
+restricciones ni objetivos médicos: adapta los ejemplos con un profesional
+cuando corresponda. Las dos opciones son días completos, no platos para
+intercambiar sin recalcular. Si cambias la sesión, ajusta también la ingesta.
+
+Para analizar el día anterior, el correo y el dashboard consultan las vueltas
+de Strava cuando el plan prevé series o tramos largos a ritmo específico.
+Si no hay vueltas, faltan permisos o la API falla, se indica que el análisis es
+parcial. El ritmo medio incluye calentamiento y recuperaciones y no demuestra
+que se cumplieran las series; las vueltas coincidentes tampoco demuestran por
+sí solas continuidad ni que fueran las repeticiones. El tiempo en zonas no se
+conoce a partir de una FC media. No se modifican el plan ni las actividades.
