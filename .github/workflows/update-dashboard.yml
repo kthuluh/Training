@@ -3,7 +3,7 @@ name: Update dashboard
 on:
   schedule:
     # 05:05 UTC, justo después del correo (05:00) para no pisarse.
-    - cron: "0 7 * * *"
+    - cron: "0 2 * * *"
       timezone: "Europe/Madrid"
   workflow_dispatch: {}
 
